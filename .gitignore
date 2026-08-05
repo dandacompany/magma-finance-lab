@@ -1,0 +1,17 @@
+# 인증 정보 — 절대 커밋 금지
+.env
+.env.*
+!.env.example
+*.token
+*token.json
+
+# 파이썬
+__pycache__/
+*.pyc
+.venv/
+
+# 노드
+node_modules/
+
+# OS
+.DS_Store
