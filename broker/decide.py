@@ -11,7 +11,7 @@
   4. 보유 >= 10주면 매수하지 않는다
   5. 현재가 <= 평단 * 0.97 이면 2주, 아니면 1주 매수
 """
-import argparse, json, os, subprocess, sys, urllib.request
+import argparse, json, os, subprocess, sys
 from datetime import date
 
 P_TARGET, D_TRIGGER, Q_MAX = 8.0, 3.0, 10
@@ -20,7 +20,12 @@ SYMBOL = "069500"
 
 def psql(url, sql, tuples_only=True):
     cmd = ["psql", url, "-tAc" if tuples_only else "-c", sql]
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    except FileNotFoundError:
+        print("ERROR: psql 이 없습니다. postgresql-client 를 설치하세요.\n"
+              "  Debian/Ubuntu:  sudo apt-get install -y postgresql-client", file=sys.stderr)
+        sys.exit(1)
     if r.returncode != 0:
         print(f"DB 오류: {r.stderr.strip()[:200]}", file=sys.stderr)
         sys.exit(1)
@@ -28,8 +33,8 @@ def psql(url, sql, tuples_only=True):
 
 
 def kiwoom(api_id, path, body):
-    cmd = ["env", "-i", f"HOME={os.environ['HOME']}", "PATH=/usr/bin:/bin", "TMPDIR=/tmp",
-           "python3", "/tmp/kw/kiwoom.py", "call", api_id, path, json.dumps(body)]
+    here = os.path.dirname(os.path.abspath(__file__))
+    cmd = [sys.executable, os.path.join(here, "kiwoom.py"), "call", api_id, path, json.dumps(body)]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         print(f"API 오류: {r.stderr.strip()[:200]}", file=sys.stderr)
@@ -37,27 +42,23 @@ def kiwoom(api_id, path, body):
     return json.loads(r.stdout)
 
 
-def market_open_today():
-    """장 운영 캘린더로 오늘이 영업일인지 확인 (주문 전에 거른다)"""
-    try:
-        with urllib.request.urlopen(
-            "https://openapi.tossinvest.com/api/v1/market-calendar/KR", timeout=10
-        ) as _:
-            pass
-    except Exception:
-        pass
-    # 토스는 토큰이 필요하므로 여기서는 키움 일봉의 최신 일자로 갈음한다.
+def latest_bars():
+    """최신 일봉을 받는다. 첫 봉의 날짜가 오늘이 아니면 장이 안 열린 것이다."""
     d = kiwoom("ka10081", "/api/dostk/chart",
                {"stk_cd": SYMBOL, "base_dt": date.today().strftime("%Y%m%d"), "upd_stkpc_tp": "1"})
-    bars = d.get("stk_dt_pole_chart_qry") or []
-    return bool(bars) and bars[0]["dt"] == date.today().strftime("%Y%m%d")
+    return d.get("stk_dt_pole_chart_qry") or []
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--db", required=True)
+    ap.add_argument("--db", default=os.environ.get("SUPABASE_DB_URL", ""),
+                    help="Postgres 접속 URL. 생략하면 SUPABASE_DB_URL 환경변수")
     ap.add_argument("--dry-run", action="store_true", help="DB 기록 없이 판단만 출력")
     a = ap.parse_args()
+    if not a.db:
+        print("ERROR: DB 접속 정보가 없습니다. --db 로 주거나 프로필 .env 에 "
+              "SUPABASE_DB_URL 을 넣으세요.", file=sys.stderr)
+        return 1
 
     today = date.today().isoformat()
 
@@ -69,7 +70,8 @@ def main():
         return 0
 
     # 1) 장 개장
-    if not market_open_today():
+    bars = latest_bars()
+    if not bars or bars[0]["dt"] != date.today().strftime("%Y%m%d"):
         print(json.dumps({"decision": "skip", "reason": "장 미개장 또는 아직 시세 없음"},
                          ensure_ascii=False))
         return 0
@@ -81,9 +83,7 @@ def main():
     qty = int(held[0]["rmnd_qty"]) if held else 0
     avg = float(held[0]["pur_pric"]) if held else 0.0
 
-    price = int(kiwoom("ka10081", "/api/dostk/chart",
-                       {"stk_cd": SYMBOL, "base_dt": date.today().strftime("%Y%m%d"),
-                        "upd_stkpc_tp": "1"})["stk_dt_pole_chart_qry"][0]["cur_prc"])
+    price = int(bars[0]["cur_prc"])          # market_open_today() 가 받아둔 값을 재사용
 
     # 2~5) 판정
     if qty == 0:
