@@ -15,3 +15,6 @@ node_modules/
 
 # OS
 .DS_Store
+
+# 실행 기록 — 각자의 판단 파일이라 커밋하지 않는다
+state/
