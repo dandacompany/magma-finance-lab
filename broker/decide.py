@@ -4,7 +4,7 @@
 주문을 내지 않는다. 판단만 하고 그 결과를 판단 파일로 남긴다.
 집행은 사람 승인 후 별도 단계에서.
 
-  0. 오늘 이미 판정한 기록이 있으면 아무것도 하지 않는다   ← 중복 집행 방지
+  0. 오늘 판단·주문 기안이 5건이면 아무것도 하지 않는다
   1. 장이 열리지 않았으면 아무것도 하지 않는다
   2. 보유 0주면 1주 매수
   3. 현재가 >= 평단 * 1.08 이면 전량 매도
@@ -12,16 +12,28 @@
   5. 현재가 <= 평단 * 0.97 이면 2주, 아니면 1주 매수
 
 판정 0번은 DB가 아니라 저장소 안의 판단 파일(state/decisions/<날짜>.json)로 막는다.
-안전장치를 코드 안에 두기 위해서다. DB 기록은 이 판단 파일을 근거로 별도 단계에서 남긴다.
+같은 날짜의 실행 결과는 이 파일 하나에 누적한다. DB 기록은 이 판단 파일을 근거로 별도 단계에서 남긴다.
 """
 import argparse, json, os, shutil, subprocess, sys
 from datetime import date
 
 P_TARGET, D_TRIGGER, Q_MAX = 8.0, 3.0, 10
+DAILY_DRAFT_MAX = 5
 SYMBOL = "069500"
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATE_DIR = os.path.join(REPO, "state", "decisions")
+
+
+def load_daily_decisions(state_path):
+    """이전 단일 판단 파일과 새 누적 형식을 모두 읽는다."""
+    if not os.path.exists(state_path):
+        return []
+    with open(state_path, encoding="utf-8") as f:
+        saved = json.load(f)
+    if isinstance(saved, dict) and isinstance(saved.get("decisions"), list):
+        return saved["decisions"]
+    return [saved] if isinstance(saved, dict) else []
 
 
 def kiwoomcli(args, profile):
@@ -64,12 +76,12 @@ def main():
     today = date.today().isoformat()
     state_path = os.path.join(a.state_dir, today + ".json")
 
-    # 0) 중복 판정 방지 — 오늘 판단 파일이 있으면 아무것도 하지 않는다
-    if os.path.exists(state_path):
-        prev = json.load(open(state_path, encoding="utf-8"))
-        print(json.dumps({"decision": "skip", "reason": "오늘 이미 판정함",
-                          "recorded_at": prev.get("decided_at"),
-                          "previous": prev.get("decision")}, ensure_ascii=False))
+    # 0) 같은 날 반복 실행은 허용하되 설정된 일일 한도에서 멈춘다
+    daily_decisions = load_daily_decisions(state_path)
+    if len(daily_decisions) >= DAILY_DRAFT_MAX:
+        print(json.dumps({"decision": "skip", "reason": "오늘 판단·주문 기안 한도 도달",
+                          "daily_count": len(daily_decisions),
+                          "daily_limit": DAILY_DRAFT_MAX}, ensure_ascii=False))
         return 0
 
     # 1) 장 개장
@@ -108,9 +120,12 @@ def main():
     if not a.dry_run:
         from datetime import datetime
         out["decided_at"] = datetime.now().isoformat(timespec="seconds")
+        daily_decisions.append(dict(out))
+        out["daily_count"] = len(daily_decisions)
+        out["daily_limit"] = DAILY_DRAFT_MAX
         os.makedirs(a.state_dir, exist_ok=True)
         with open(state_path, "w", encoding="utf-8") as f:
-            json.dump(out, f, ensure_ascii=False, indent=2)
+            json.dump({**out, "decisions": daily_decisions}, f, ensure_ascii=False, indent=2)
         out["state_file"] = state_path
         if side:
             out["status"] = "drafted — 사람 승인 대기"
