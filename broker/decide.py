@@ -14,7 +14,7 @@
 판정 0번은 DB가 아니라 저장소 안의 판단 파일(state/decisions/<날짜>.json)로 막는다.
 안전장치를 코드 안에 두기 위해서다. DB 기록은 이 판단 파일을 근거로 별도 단계에서 남긴다.
 """
-import argparse, json, os, subprocess, sys
+import argparse, json, os, shutil, subprocess, sys
 from datetime import date
 
 P_TARGET, D_TRIGGER, Q_MAX = 8.0, 3.0, 10
@@ -24,12 +24,19 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATE_DIR = os.path.join(REPO, "state", "decisions")
 
 
-def kiwoom(api_id, path, body):
-    here = os.path.dirname(os.path.abspath(__file__))
-    cmd = [sys.executable, os.path.join(here, "kiwoom.py"), "call", api_id, path, json.dumps(body)]
+def kiwoomcli(args, profile):
+    executable = shutil.which("kiwoomcli")
+    if executable is None:
+        fallback = os.path.expanduser("~/.local/bin/kiwoomcli")
+        executable = fallback if os.access(fallback, os.X_OK) else None
+    if executable is None:
+        print("kiwoomcli를 찾지 못했습니다. uv tool install kwcli 후 새 세션에서 다시 실행하세요.", file=sys.stderr)
+        sys.exit(1)
+
+    cmd = [executable, *args, "--profile", profile, "--format", "json"]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
-        print("API 오류: " + r.stderr.strip()[:200], file=sys.stderr)
+        print("공식 CLI 오류: " + r.stderr.strip()[:200], file=sys.stderr)
         sys.exit(1)
     text = r.stdout.strip()
     brace = text.find("{")          # 앞에 HTTP 상태 줄이 붙어 나와도 JSON만 취한다
@@ -39,9 +46,11 @@ def kiwoom(api_id, path, body):
     return json.loads(text[brace:])
 
 
-def latest_bars():
-    d = kiwoom("ka10081", "/api/dostk/chart",
-               {"stk_cd": SYMBOL, "base_dt": date.today().strftime("%Y%m%d"), "upd_stkpc_tp": "1"})
+def latest_bars(profile):
+    d = kiwoomcli(
+        ["domestic", "candles", "daily", "--code", SYMBOL, "--date", date.today().strftime("%Y%m%d")],
+        profile,
+    )
     return d.get("stk_dt_pole_chart_qry") or []
 
 
@@ -49,6 +58,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="판단 파일을 남기지 않고 판단만 출력")
     ap.add_argument("--state-dir", default=STATE_DIR, help="판단 파일을 둘 폴더")
+    ap.add_argument("--profile", default="모의계좌", help="kiwoomcli 계좌 별칭")
     a = ap.parse_args()
 
     today = date.today().isoformat()
@@ -63,13 +73,16 @@ def main():
         return 0
 
     # 1) 장 개장
-    bars = latest_bars()
+    bars = latest_bars(a.profile)
     if not bars or bars[0]["dt"] != date.today().strftime("%Y%m%d"):
         print(json.dumps({"decision": "skip", "reason": "장 미개장 또는 아직 시세 없음"},
                          ensure_ascii=False))
         return 0
 
-    acnt = kiwoom("kt00018", "/api/dostk/acnt", {"qry_tp": "1", "dmst_stex_tp": "KRX"})
+    acnt = kiwoomcli(
+        ["domestic", "accounts", "holdings", "--basis", "total", "--exchange", "KRX"],
+        a.profile,
+    )
     held = [x for x in (acnt.get("acnt_evlt_remn_indv_tot") or [])
             if x.get("stk_cd", "").lstrip("A") == SYMBOL]
     qty = int(held[0]["rmnd_qty"]) if held else 0
@@ -86,7 +99,7 @@ def main():
     elif price <= avg * (1 - D_TRIGGER / 100):
         side, n_qty, why = "BUY", 2, "평단 대비 -%s%% 이하 — 2주 매수" % D_TRIGGER
     else:
-        side, n_qty, why = "BUY", 1, "평단 위 — 1주 매수"
+        side, n_qty, why = "BUY", 1, "평단 대비 -%s%% 초과 — 1주 매수" % D_TRIGGER
 
     out = {"date": today, "symbol": SYMBOL, "price": price, "held_qty": qty,
            "avg_price": round(avg), "decision": side or "hold", "quantity": n_qty,

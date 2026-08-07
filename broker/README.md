@@ -1,192 +1,50 @@
-# broker/ — 증권사 API 연동
+# broker 경계
 
-키움증권 REST API를 부르는 도구가 들어 있습니다. **모의투자가 기본**이고 실전은 명시해야만 열립니다.
+이 폴더는 증권사 API를 다시 구현하는 곳이 아닙니다.
 
-| 파일                      | 무엇                                                     |
-| ------------------------- | -------------------------------------------------------- |
-| `kiwoom.py`               | 호출 래퍼. 표준 라이브러리만 쓰므로 설치할 것이 없습니다 |
-| `decide.py`               | 오늘의 판단. 조건표대로 판정만 하고 **주문은 내지 않습니다** |
-| `kiwoom-api-reference.md` | 직접 호출해 확인한 TR 목록과 함정                        |
+- 인증·토큰·종목·잔고·주문 호출: 키움 공식 `kwcli` / `kiwoomcli`
+- 자연어를 공식 CLI 명령으로 바꾸는 운영 설명서: `kiwoom-broker` Hermes 스킬
+- 전략 결과를 주문 의도로 바꾸는 결정론적 하네스: `decide.py`
 
-## 왜 스킬이 아니라 저장소에 있나
+## 1. 설치와 setup
 
-처음에는 이걸 Hermes 스킬로 만들어 `hermes skills install` 로 받게 하려 했습니다. **그런데 설치가 막혔습니다.**
+```bash
+uv tool install kwcli
+uv tool update-shell
+kiwoomcli setup
+```
+
+강의 실습은 서버 `demo`, 계좌 별칭 `모의계좌`를 사용합니다. App Key·Secret은 OS Keyring에 저장하고 저장소에 `.env`로 남기지 않습니다.
+
+setup은 Hermes가 실행될 **같은 호스트·같은 OS 사용자**에서 실행해야 합니다. `자격 증명 저장소 사용 불가`가 나오면 `.env`로 우회하지 말고 중단합니다.
+
+## 2. 새 Sam 세션 preflight
 
 ```text
-Verdict: DANGEROUS
-  CRITICAL exfiltration   os.environ.get("KIWOOM_REST_API_KEY")
-  CRITICAL exfiltration   os.environ.get("KIWOOM_REST_API_SECRET")
-Decision: BLOCKED — --force does not override a dangerous verdict.
+읽기 전용 환경 점검만 해줘.
+1) command -v kiwoomcli
+2) kiwoomcli auth status --profile 모의계좌
+3) kiwoomcli doctor
+자격 증명·토큰·계좌번호 값은 출력하지 말고, PATH 인식·profile·mode·자격 증명 존재·토큰 유효 여부만 보고해줘.
 ```
 
-**스캐너가 맞습니다.** "환경변수에서 API 키를 읽어 네트워크로 보내는 코드"는 유출 패턴 그 자체입니다. 우리 의도가 정당해도 코드만 봐서는 구분할 방법이 없습니다.
+PATH, `모의계좌`, `demo`, 자격 증명, 토큰을 모두 인식한 뒤에만 조회합니다.
 
-우회하는 방법은 있지만 쓰지 않습니다. 대신 **코드를 눈으로 볼 수 있는 곳에 둡니다.** 여러분이 clone한 저장소 안에, 읽을 수 있는 파이썬 파일로요.
-
-> 💡 여기서 하나 가져가실 것 — 남이 만든 도구에 키를 넘기기 전에 **그게 키로 무엇을 하는지 볼 수 있는가**를 확인하세요. 볼 수 없으면 넘기지 마세요.
-
-## 자격증명 넣는 법
-
-필요한 값은 셋입니다.
-
-```text
-KIWOOM_REST_API_KEY
-KIWOOM_REST_API_SECRET
-KIWOOM_API_BASE_URL     # 생략 가능 — 없으면 모의투자 주소
-```
-
-찾는 순서는 이렇습니다. **위에서 하나라도 잡히면 아래는 보지 않습니다.**
-
-| 순위 | 어디                             | 언제                                                                           |
-| ---- | -------------------------------- | ------------------------------------------------------------------------------ |
-| 1    | 이미 환경에 있으면 그대로        | **Hermes 프로필 `.env`** 나 Bitwarden·1Password 같은 볼트가 넣어준 경우 — 권장 |
-| 2    | `KIWOOM_AUTH_ENV=/경로/.env`     | 파일 위치를 직접 지정할 때                                                     |
-| 3    | `$HERMES_HOME/.env`              | Hermes 프로필 홈이 잡혀 있을 때                                                |
-| 4    | `~/.claude/auth/kiwoom-mock.env` | 개발 편의용 폴백                                                               |
-
-### 권장 — Hermes 프로필 `.env`
+## 3. 공식 CLI 조회
 
 ```bash
-# ~/.hermes/profiles/sam/.env
-KIWOOM_REST_API_KEY=...
-KIWOOM_REST_API_SECRET=...
-KIWOOM_API_BASE_URL=https://mockapi.kiwoom.com
+kiwoomcli domestic etfs info --code 069500 --profile 모의계좌 --format json
+kiwoomcli domestic candles daily --code 069500 --date YYYYMMDD --profile 모의계좌 --format json
+kiwoomcli domestic accounts holdings --basis total --exchange KRX --profile 모의계좌 --format json
 ```
 
-Hermes가 프로필의 `.env`를 읽어 세션 환경에 넣어주므로, 도구는 그 값을 그대로 씁니다. `chmod 600`으로 권한을 좁히세요.
+명령을 추정하지 말고 `kiwoomcli spec search "검색어"`와 해당 명령의 `-h`를 먼저 사용합니다.
 
-### 키를 가진 프로필을 하나로 좁힌다
+## 4. 주문 경계
 
-이 구조의 진짜 쓸모가 여기 있습니다. **집행 담당 프로필의 `.env`에만 키를 넣으세요.**
+1. 처음에는 `--confirm`을 붙이지 않아 미전송 미리보기를 만듭니다.
+2. `OrderIntent`와 유효한 `ApprovalRecord`를 확인합니다.
+3. 종목·수량·가격·주문 유형·demo 프로필이 미리보기와 같을 때만 `--confirm`을 붙입니다.
+4. 실패한 주문을 자동으로 재시도하지 않습니다.
 
-판단 담당 프로필에는 그 값이 없으므로, 그 세션에서 도구를 부르면 이렇게 멈춥니다.
-
-```text
-ERROR: 키움 자격증명을 찾지 못했습니다.
-```
-
-**호출 자체가 시작되지 않습니다.** 권한을 안 준 일은 실수로도 못 하게 됩니다.
-
-## 사용법
-
-```bash
-# 토큰 상태 (토큰 값은 안 보입니다)
-python3 broker/kiwoom.py token --status
-
-# ETF 종목 정보
-python3 broker/kiwoom.py call ka40002 /api/dostk/etf '{"stk_cd":"069500"}'
-
-# 일봉 차트 — 1회에 600봉까지 옵니다
-python3 broker/kiwoom.py call ka10081 /api/dostk/chart \
-  '{"stk_cd":"069500","base_dt":"20260806","upd_stkpc_tp":"1"}'
-
-# 계좌 평가잔고
-python3 broker/kiwoom.py call kt00018 /api/dostk/acnt '{"qry_tp":"1","dmst_stex_tp":"KRX"}'
-```
-
-`upd_stkpc_tp`는 수정주가 구분입니다(`1` = 적용). **한 프로젝트 안에서 이 값을 섞으면 평단 계산이 어긋납니다.**
-
-## 주문 (실행 전에 반드시 읽으세요)
-
-```bash
-# 이렇게 하면 거부됩니다 — 무엇을 주문하려는지 보여주고 멈춥니다
-python3 broker/kiwoom.py call kt10000 /api/dostk/ordr \
-  '{"dmst_stex_tp":"KRX","stk_cd":"069500","ord_qty":"1","ord_uv":"","trde_tp":"3"}'
-
-# 확인한 뒤에만
-python3 broker/kiwoom.py call kt10000 /api/dostk/ordr '{...}' --confirm-order
-```
-
-- 수량·단가는 **문자열**로 보냅니다 (`"1"`, 숫자 1 아님)
-- **주문 응답을 못 받았다고 재주문하지 마세요.** 주문 조회로 이미 나갔는지부터 확인합니다
-
-주문 안전 설계는 `guardrails/order-safety.md`에 정리해 뒀습니다.
-
-## `decide.py` — 오늘의 판단
-
-`backtest/rules.md`의 판정 순서를 그대로 구현한 것입니다. **주문 코드가 없습니다.** 판단만 하고 결과를 파일로 남깁니다.
-
-```bash
-python3 broker/decide.py --dry-run    # 판단만 출력, 기록하지 않음
-python3 broker/decide.py              # 판단 + state/decisions/<날짜>.json 기록
-```
-
-```json
-{"date":"2026-08-06","symbol":"069500","price":99535,"held_qty":2,
- "avg_price":99525,"decision":"BUY","quantity":1,
- "rationale":"평단 위 — 1주 매수","status":"drafted — 사람 승인 대기"}
-```
-
-### 판단 파일이 하는 일
-
-`state/decisions/2026-08-06.json` — 이 파일이 **그날 판단의 정본**입니다. 두 가지 역할이 있습니다.
-
-**하나. 같은 날 두 번 사지 않게 막습니다.** 조건표 판정 0번입니다.
-
-```bash
-$ python3 broker/decide.py     # 두 번째 실행
-{"decision":"skip","reason":"오늘 이미 판정함",
- "recorded_at":"2026-08-06T14:02:52","previous":"BUY"}
-```
-
-`skip`만 말하지 않고 **언제 무엇을 이미 했는지**까지 돌려줍니다. 중복인지 사고인지 사람이 구분할 수 있어야 하니까요.
-
-크론이 두 번 돌아도, 손으로 한 번 더 실행해도 두 번 사지 않습니다. **두 번 돌려도 사고가 나지 않는 루프**가 이 스크립트의 첫 번째 안전장치입니다.
-
-**둘. 뒷단계가 참조할 사실을 남깁니다.** 승인 카드도 DB 기록도 이 파일의 숫자를 옮겨 적습니다. 숫자를 다시 계산하지 않습니다.
-
-### 왜 DB를 보지 않나
-
-중복 방지를 데이터베이스에서 확인할 수도 있었습니다. 그러지 않은 이유가 있습니다.
-
-DB 조회를 에이전트에게 맡기면 **안전장치가 코드에서 판단으로 넘어갑니다.** 돈이 움직이는 루프에서 "오늘 이미 샀는가"는 매번 같은 답이 나와야 하는 질문이지, 그때그때 판단할 문제가 아닙니다.
-
-그래서 이렇게 갈랐습니다.
-
-| 무엇 | 누가 |
-| --- | --- |
-| 판단·중복 방지 | **코드** (`decide.py` + 판단 파일) |
-| DB 기록·카드 생성·승인 요청 | **에이전트** (Supabase MCP·칸반) |
-
-부수 효과로 이 스크립트는 `psql`도 접속 문자열도 필요 없습니다. 필요한 건 키움 키뿐입니다.
-
-> 💡 자동화를 설계할 때 물어볼 것 — **틀리면 안 되는 판단은 코드에, 매번 달라도 되는 판단은 에이전트에.** 둘을 섞으면 어느 쪽도 신뢰할 수 없습니다.
-
-### 판단 파일은 커밋하지 않습니다
-
-`state/`는 `.gitignore`에 들어 있습니다. 실행할 때마다 생기는 각자의 기록이라 저장소에 들어갈 것이 아닙니다.
-
-다시 판단하고 싶으면 그날 파일을 지우면 됩니다.
-
-```bash
-rm state/decisions/2026-08-06.json
-```
-
-## 도구가 대신 해주는 것
-
-|                   | 손으로 하면    | 이 도구가 하면                 |
-| ----------------- | -------------- | ------------------------------ |
-| 토큰 만료         | 401 보고 당황  | 감지해서 1회 재발급 후 재시도  |
-| 429               | 그냥 실패      | 1초 → 2초 → 4초 대기 후 재시도 |
-| HTTP 200인데 실패 | 성공으로 착각  | `return_code`까지 검사         |
-| 모의/실전 혼동    | 사고           | 프로필과 서버가 어긋나면 중단  |
-| 주문 실수         | 되돌릴 수 없음 | `--confirm-order` 없이는 거부  |
-
-접근토큰은 파일로 저장·재사용합니다(요청마다 재발급하면 발급 제한에 걸립니다). 토큰 파일은 임시 폴더에 `600` 권한으로 저장되고 저장소에는 들어가지 않습니다.
-
-## 자주 만나는 문제
-
-| 증상                                    | 원인                        | 해결                                                                                   |
-| --------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------- |
-| `8001 App Key와 Secret Key 검증에 실패` | 키 만료·해지                | 포털에서 재발급. 상시모의투자 신청 상태도 확인                                         |
-| `프로필과 서버가 어긋납니다`            | 주소가 프로필과 안 맞음     | 모의는 `mockapi.kiwoom.com`                                                            |
-| `키움 자격증명을 찾지 못했습니다`       | 위 네 곳 어디에도 키가 없음 | 프로필 `.env`에 넣으세요. **다른 프로필에서는 일부러 안 보이게 한 것일 수도 있습니다** |
-| `모의투자 해당조회내역이 없습니다`      | **정상.** 보유 0건          | 그대로 진행                                                                            |
-| 조회는 되는데 필드가 전부 빈 문자열     | 종목코드 오타               | **없는 종목도 정상 응답으로 옵니다.** 코드를 확인하세요                                |
-| 429 반복                                | 호출이 잦음                 | 조회는 TR당 초당 1건이 안전합니다                                                      |
-
-## 공식 저장소와의 관계
-
-키움 공식 저장소(`Kiwoom-Securities/Kiwoom-REST-API`)는 Python 런타임과 예제 362개를 제공하지만 **라이선스가 `All rights reserved`** 라 복제·재배포에 제약이 있습니다.
-
-`kiwoom.py`는 공식 코드를 포함하지 않습니다. 공개된 API 사양(엔드포인트·TR 식별자·파라미터명)만 참조해 직접 만든 것입니다. 공식 런타임이나 CLI가 필요하면 키움 배포처에서 별도로 받으세요.
+Keyring은 같은 OS 사용자 안의 에이전트를 물리적으로 격리하지 않습니다. 강의의 Sam·Ada 분리는 스킬·파일 계약·승인 기록을 이용한 역할 분리입니다. 실계좌의 강한 격리는 별도 OS 사용자·컨테이너·실행 정책이 필요합니다.
