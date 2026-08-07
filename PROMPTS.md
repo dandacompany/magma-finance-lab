@@ -46,7 +46,7 @@
 1) command -v kiwoomcli
 2) kiwoomcli auth status --profile 모의계좌
 3) kiwoomcli doctor
-자격 증명·토큰·계좌번호 값은 출력하지 말고, PATH 인식·profile·mode·자격 증명 존재·토큰 유효 여부만 보고해줘.
+자격 증명·토큰·계좌번호 원문은 출력하지 마. `command -v` 결과로 PATH 인식 여부를 적고, `auth status` 출력의 `계좌 별칭`, `모드`, `자격 증명 존재`, `자격 증명 출처`, `토큰 유효`, `지금 API 호출 가능` 값을 해석하거나 번역하지 말고 그대로 옮겨줘. 값이 모순되면 통과로 판정하지 마.
 ```
 
 다섯 항목을 모두 통과한 뒤에만 조회합니다.
