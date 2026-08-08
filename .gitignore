@@ -18,3 +18,6 @@ node_modules/
 
 # 실행 기록 — 각자의 판단 파일이라 커밋하지 않는다
 state/
+
+# 수집 산출물 — 원천 시세와 Supabase 적재 SQL은 로컬에만 둔다
+artifacts/

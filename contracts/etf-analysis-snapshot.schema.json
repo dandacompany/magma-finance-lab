@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dante-labs.com/contracts/etf-analysis-snapshot.schema.json",
+  "title": "ETFAnalysisSnapshot",
+  "type": "object",
+  "required": ["artifact_id", "artifact_type", "schema_version", "as_of", "available_at", "source", "symbol", "currency", "total_expense_ratio", "tracking_error", "aum", "avg_daily_turnover_20d", "premium_discount", "index_per", "index_pbr", "index_dividend_yield", "warnings"],
+  "properties": {
+    "artifact_id": { "type": "string", "minLength": 1 },
+    "artifact_type": { "const": "ETFAnalysisSnapshot" },
+    "schema_version": { "const": "1.0.0" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "available_at": { "type": "string", "format": "date-time" },
+    "source": { "type": "string", "minLength": 1 },
+    "symbol": { "type": "string", "pattern": "^[0-9]{6}$" },
+    "currency": { "const": "KRW" },
+    "total_expense_ratio": { "type": ["number", "null"], "minimum": 0 },
+    "tracking_error": { "type": ["number", "null"], "minimum": 0 },
+    "aum": { "type": ["number", "null"], "minimum": 0 },
+    "avg_daily_turnover_20d": { "type": ["number", "null"], "minimum": 0 },
+    "premium_discount": { "type": ["number", "null"] },
+    "index_per": { "type": ["number", "null"], "minimum": 0 },
+    "index_pbr": { "type": ["number", "null"], "minimum": 0 },
+    "index_dividend_yield": { "type": ["number", "null"] },
+    "index_valuation_method": { "type": ["string", "null"] },
+    "warnings": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "content_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

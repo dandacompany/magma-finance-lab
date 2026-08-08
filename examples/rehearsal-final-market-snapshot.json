@@ -1,0 +1,23 @@
+{
+  "artifact_id": "market-069500-rehearsal-final",
+  "artifact_type": "MarketSnapshot",
+  "schema_version": "1.0.0",
+  "as_of": "2026-08-05T15:30:00+09:00",
+  "available_at": "2026-08-07T11:00:01+09:00",
+  "source": "kiwoom-verified-course-evidence",
+  "symbol": "069500",
+  "currency": "KRW",
+  "rows": [
+    {
+      "trade_date": "2026-08-05",
+      "open_price": 105050,
+      "high_price": 105660,
+      "low_price": 103300,
+      "close_price": 104300,
+      "volume": 18191398,
+      "adjusted": true,
+      "is_final": true
+    }
+  ],
+  "warnings": ["single_verified_row_not_a_backfill"]
+}

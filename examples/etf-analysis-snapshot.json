@@ -1,0 +1,115 @@
+{
+  "artifact_id": "etf-analysis-069500-20260807T090624+0900",
+  "artifact_type": "ETFAnalysisSnapshot",
+  "schema_version": "1.0.0",
+  "created_at": "2026-08-07T09:06:24+09:00",
+  "as_of": "2026-08-05T15:30:00+09:00",
+  "available_at": "2026-08-07T09:06:24+09:00",
+  "producer": "section8-dogfood",
+  "code_version": "vibe-finance-kit@e542710",
+  "input_artifact_ids": [
+    "supabase:vjeathsibaimupweavgw:finance.daily_prices:069500:2026-08-05",
+    "kind:KR7069500007",
+    "samsungfund:2ETF01:2026-07-09"
+  ],
+  "content_hash": "sha256:65d640fa4b473a15023aae0449f3a87c83baef325e3e91808364ce6fb36ca8c0",
+  "warnings": [
+    "source_table_has_no_ingestion_timestamp_available_at_is_evidence_extraction_time",
+    "latest_market_observation_is_2026-08-05_while_artifact_was_created_2026-08-07",
+    "aum_effective_at_2026-07-09_is_stale_relative_to_market_observation",
+    "same_date_tracking_error_premium_discount_and_index_valuation_were_not_captured",
+    "adjusted_flag_was_read_from_source_row_but_adjustment_methodology_was_not_independently_verified",
+    "published_at_is_unavailable"
+  ],
+  "source": "supabase:magma-data.finance.daily_prices+kind.krx+SamsungAssetManagement",
+  "symbol": "069500",
+  "currency": "KRW",
+  "total_expense_ratio": 0.0015,
+  "tracking_error": null,
+  "aum": 25579700000000,
+  "avg_daily_turnover_20d": 2600943812718.85,
+  "premium_discount": null,
+  "index_per": null,
+  "index_pbr": null,
+  "index_dividend_yield": null,
+  "index_valuation_method": null,
+  "price_signals": {
+    "return_20d_pct": -15.521249,
+    "volatility_20d_pct": 123.872971,
+    "drawdown_252d_pct": -40.810358
+  },
+  "product_quality": {
+    "expense_ratio_pct": 0.15,
+    "tracking_error_pct": null,
+    "aum": 25579700000000,
+    "avg_trading_value_20d": 2600943812718.85,
+    "premium_discount_pct": null
+  },
+  "index_valuation": {
+    "pe": null,
+    "pb": null,
+    "dividend_yield_pct": null,
+    "methodology": null
+  },
+  "data_quality": {
+    "source": "supabase:magma-data.finance.daily_prices+kind.krx+SamsungAssetManagement",
+    "published_at": null,
+    "effective_at": "2026-08-05T15:30:00+09:00",
+    "adjusted": true,
+    "missing_fields": [
+      "tracking_error",
+      "premium_discount",
+      "index_per",
+      "index_pbr",
+      "index_dividend_yield"
+    ],
+    "warnings": [
+      "source_table_has_no_ingestion_timestamp_available_at_is_evidence_extraction_time",
+      "latest_market_observation_is_2026-08-05_while_artifact_was_created_2026-08-07",
+      "aum_effective_at_2026-07-09_is_stale_relative_to_market_observation",
+      "same_date_tracking_error_premium_discount_and_index_valuation_were_not_captured",
+      "adjusted_flag_was_read_from_source_row_but_adjustment_methodology_was_not_independently_verified",
+      "published_at_is_unavailable"
+    ]
+  },
+  "latest_price": {
+    "trade_date": "2026-08-05",
+    "open_price": 105050,
+    "high_price": 105660,
+    "low_price": 103300,
+    "close_price": 104300,
+    "volume": 18191398,
+    "source": "kiwoom",
+    "adjusted": true
+  },
+  "calculation_methods": {
+    "return_20d_pct": "(latest_close / close_20_sessions_ago - 1) * 100",
+    "volatility_20d_pct": "stddev_samp(20 daily simple returns) * sqrt(252) * 100",
+    "drawdown_252d_pct": "minimum((close / running_peak) - 1) over latest 252 observations * 100",
+    "avg_daily_turnover_20d": "mean(close_price * volume) over latest 20 observations",
+    "content_hash": "sha256 of canonical compact JSON with recursively sorted keys after removing content_hash"
+  },
+  "metric_sources": [
+    {
+      "metric": "latest_price_and_price_signals",
+      "source": "supabase:magma-data.finance.daily_prices",
+      "source_record": "symbol=069500,trade_date=2026-08-05",
+      "effective_at": "2026-08-05T15:30:00+09:00",
+      "available_at": "2026-08-07T09:06:24+09:00"
+    },
+    {
+      "metric": "total_expense_ratio",
+      "source": "KRX KIND ETF product summary",
+      "source_url": "https://kind.krx.co.kr/disclosure/etfisudetail.do?method=searchEtfIsuSummary&strIsurCd=06950",
+      "effective_at": null,
+      "available_at": "2026-08-07T09:06:24+09:00"
+    },
+    {
+      "metric": "aum",
+      "source": "Samsung Asset Management KODEX 200 product page",
+      "source_url": "https://m.samsungfund.com/etf/product/view.do?id=2ETF01",
+      "effective_at": "2026-07-09T00:00:00+09:00",
+      "available_at": "2026-08-07T09:06:24+09:00"
+    }
+  ]
+}

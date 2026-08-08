@@ -83,11 +83,157 @@ Keyring은 OS 사용자 단위라서 같은 사용자의 Ada와 Sam을 물리적
 
 # 투자 DB 설계와 수집 (8.2)
 
-> 실습 확정 후 추가됩니다.
+## 1. Skill과 MCP 경계 확인 (Ada·Oliver)
+
+```text
+Vibe Finance Kit의 finance_kit_doctor를 호출해서
+1) 읽기 전용 모드인지
+2) 발견된 도구가 4개인지
+3) order_tools가 빈 배열인지
+4) broker_credentials_required가 false인지
+확인해줘. 주문·계좌·인증 도구를 추가하거나 호출하지 마.
+```
+
+Skill 설치가 필요한 경우에는 검증된 커밋의 파일을 사용합니다.
+
+```bash
+hermes -p ada skills install https://raw.githubusercontent.com/dandacompany/vibe-finance-kit/e542710/skills/finance-research-discipline/SKILL.md --yes
+hermes -p ada skills install https://raw.githubusercontent.com/dandacompany/vibe-finance-kit/e542710/skills/etf-value-analysis/SKILL.md --yes
+hermes -p ada skills install https://raw.githubusercontent.com/dandacompany/vibe-finance-kit/e542710/skills/backtest-audit/SKILL.md --yes
+hermes -p oliver skills install https://raw.githubusercontent.com/dandacompany/vibe-finance-kit/e542710/skills/finance-research-discipline/SKILL.md --yes
+hermes -p oliver skills install https://raw.githubusercontent.com/dandacompany/vibe-finance-kit/e542710/skills/etf-value-analysis/SKILL.md --yes
+```
+
+Oliver의 새 세션에서는 공개자료 조사 Skill 두 개가 보이고 주문·브로커·계좌 도구가 없는지 확인합니다.
+
+## 2. 데이터 계약 검토 (Ada)
+
+```text
+이 저장소의 contracts/와
+supabase/migrations/20260806090000_finance_contract.sql을 읽어줘.
+
+라이브 데이터베이스에는 적용하지 말고 다음만 표로 검토해줘.
+1) 종목코드가 A 접두 없는 6자리로 제한되는지
+2) 일봉 중복을 어떤 키로 막는지
+3) as_of와 available_at이 구분되는지
+4) 결측을 null과 warnings로 보존하는지
+5) Data API grant와 RLS가 각각 어떻게 제한되는지
+```
+
+## 3. 장기 일봉 수집과 범위 검증 (Sam)
+
+두 ETF의 수정주가 확정 일봉을 각각 최대 3,000개 수집합니다. 당일 봉은
+자동으로 제외되며, 공통 거래일이 2,500개 미만이면 성공 처리되지 않습니다.
+
+```bash
+cd "$HOME/.hermes/workspace/magma-finance-lab"
+python3 scripts/backfill_prices.py \
+  --profile 모의계좌 \
+  --pages 5 \
+  --minimum-common-bars 2500
+```
+
+출력의 `gate_passed=true`, 두 종목의 `adjusted=true`, `common_bars`와
+`common_start`·`common_end`를 확인합니다. 생성된 원천 스냅샷과 SQL은
+`artifacts/market/`에만 남고 Git에는 포함되지 않습니다.
+
+## 4. Supabase에 멱등 적재하고 검산하기 (Ada)
+
+```text
+artifacts/market/price-history-coverage.json과 같은 폴더의
+supabase-upsert-*.sql 파일을 읽어줘.
+
+Supabase MCP로 번호 순서대로 SQL을 실행하되 finance 이외의 스키마는 건드리지 마.
+각 파일은 (symbol, trade_date) 충돌 시 갱신하는 멱등 upsert여야 한다.
+적재 뒤 069500과 102110 각각의 행 수·최소일·최대일·adjusted 값을 확인하고,
+두 종목의 공통 거래일 수와 공통 시작일·종료일도 계산해줘.
+중복 키, 비정상 OHLC, 오늘 이후 거래일이 하나라도 있으면 성공 처리하지 마.
+비밀값과 접속 문자열은 출력하지 마.
+```
+
+2,500개는 모든 투자 연구에 통용되는 절대 기준이 아닙니다. 이 실습의 일봉
+분할매수 전략에서 약 10년을 확보해 보정 구간과 평가 구간을 시간순으로 나누고,
+서로 다른 시장 국면을 포함시키기 위한 최소 게이트입니다.
+
+## 5. 종목별 독립 수집 카드 만들기 (Sam)
+
+```text
+칸반에 서로 의존하지 않는 시세 수집 카드 세 장을 만들어줘.
+
+- KODEX 200, 종목코드 069500
+- TIGER 200, 종목코드 102110
+- 실패 격리 확인용 잘못된 종목코드 000000
+
+각 카드는 키움 모의계좌의 공식 CLI로 종목을 확인하고 직전 확정 일봉만
+MarketSnapshot 계약에 맞춰 저장해야 한다. 앱키, 토큰, 계좌번호는 출력하지 않는다.
+API 호출은 초당 1건을 넘기지 않고 주문 도구는 호출하지 않는다.
+작업 경로는 이 저장소의 artifacts/market/로 고정한다.
+```
+
+실패 확인용 카드가 막혀도 나머지 두 카드가 끝나는지 보드에서 확인합니다.
+예상 카드 ID나 상태를 미리 적지 않고 화면에 나온 실제 값을 읽습니다.
+
+선행 카드 완료만 기다리는 상황은 `dependency`입니다. 반면 미확정봉처럼
+사람의 교정 입력이 필요한 실패는 `needs_input`, 필요한 조회 기능이나 자격 증명이
+없는 실패는 `capability`로 분류해야 카드가 `blocked`에 남습니다.
+
+## 6. 품질 게이트 연결 (Ada)
+
+```text
+앞의 시세 수집 카드 세 장이 모두 끝난 뒤에만 시작하는 품질 검증 카드를 만들어줘.
+검증 항목은 종목코드 정규화, 중복 거래일, OHLC 범위, 확정봉 여부,
+as_of와 available_at, source와 warnings다.
+선행 카드 중 하나가 완료되지 않으면 품질 검증을 성공 처리하지 마.
+```
+
+의도적으로 막힌 카드는 올바른 종목코드로 다시 만든 카드로 대체하고,
+품질 카드의 의존성을 새 카드에 연결한 뒤 최종 검증을 진행합니다.
+검증된 교정 입력 예시는 `examples/rehearsal-final-market-snapshot.json`입니다.
+
+## 7. 실제 분석 스냅샷 검증 (Ada)
+
+```text
+examples/etf-analysis-snapshot.json의 정확한 JSON을 읽고
+Vibe Finance Kit의 validate_etf_snapshot으로 검증해줘.
+valid, errors, warnings, order_eligible을 그대로 보고하고
+null인 가치지표를 추정해서 채우지 마.
+```
+
+로컬에서도 같은 content hash를 확인할 수 있습니다.
+
+```bash
+python3 scripts/validate_artifact.py examples/etf-analysis-snapshot.json
+```
+
+현재 가치지표 스냅샷을 과거 시점의 매매 신호로 사용하지 않습니다. 과거 발표
+시점이 확인된 가치지표 시계열이 없기 때문입니다. 8.3에서는 장기 가격 이력으로
+규칙을 검증하고, 이 스냅샷은 상품 구조와 결과의 한계를 설명하는 근거로 사용합니다.
+
+## 8. 매일 확정봉 수집 예약 (Sam)
+
+```text
+매일 한국시간 18시 30분에 069500과 102110의 직전 확정 일봉을 수집하는
+Hermes cron을 만들어줘. Sam의 종목별 확정봉 수집 카드와 Oliver의 ETF 공식
+공개자료 조사 카드를 서로 독립적으로 만들고, 둘이 끝난 뒤 Ada의 품질 검증
+카드를 실행하도록 해. 주문은 만들거나 실행하지 않는다.
+등록 뒤 cron ID, 일정, 다음 실행 시각만 보여주고 비밀값은 출력하지 마.
+```
+
+리허설에서는 생성된 ID를 기록한 뒤 해당 cron을 제거하고, 목록에서 사라졌는지 확인합니다.
 
 # 분할매수 규칙 백테스트하기 (8.3)
 
-> 실습 확정 후 추가됩니다.
+```bash
+python3 backtest/backtest.py \
+  --data artifacts/market/market-snapshot-069500.json \
+  --start 2014-05-19 \
+  --end 2020-12-30 \
+  -P 8 -D 3 -Q 10 --cap B
+```
+
+백테스트는 `t`일 확정 종가로 판단하고 `t+1`일 시가에 체결합니다. 전략과
+일괄매수는 같은 초기자금·기간·비용 모형을 사용합니다. 뒤의 평가 구간 결과를
+본 뒤 보정 구간의 파라미터를 다시 고르지 않습니다.
 
 # 결정론적 자동 집행 (8.4)
 

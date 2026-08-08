@@ -1,0 +1,23 @@
+{
+  "artifact_id": "market-000000-rehearsal",
+  "artifact_type": "MarketSnapshot",
+  "schema_version": "1.0.0",
+  "as_of": "2026-08-07T11:00:00+09:00",
+  "available_at": "2026-08-07T11:00:01+09:00",
+  "source": "invalid-symbol-rehearsal",
+  "symbol": "000000",
+  "currency": "KRW",
+  "rows": [
+    {
+      "trade_date": "2026-08-07",
+      "open_price": 100,
+      "high_price": 110,
+      "low_price": 90,
+      "close_price": 105,
+      "volume": 10,
+      "adjusted": true,
+      "is_final": false
+    }
+  ],
+  "warnings": ["intentional_invalid_fixture_for_failure_isolation"]
+}
