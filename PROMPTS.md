@@ -94,14 +94,14 @@ Vibe Finance Kit의 finance_kit_doctor를 호출해서
 확인해줘. 주문·계좌·인증 도구를 추가하거나 호출하지 마.
 ```
 
-Skill 설치가 필요한 경우에는 검증된 커밋의 파일을 사용합니다.
+Skill 설치가 필요한 경우에는 검증된 프로젝트 식별자를 사용합니다.
 
 ```bash
-hermes -p ada skills install https://raw.githubusercontent.com/dandacompany/vibe-finance-kit/e542710/skills/finance-research-discipline/SKILL.md --yes
-hermes -p ada skills install https://raw.githubusercontent.com/dandacompany/vibe-finance-kit/e542710/skills/etf-value-analysis/SKILL.md --yes
-hermes -p ada skills install https://raw.githubusercontent.com/dandacompany/vibe-finance-kit/e542710/skills/backtest-audit/SKILL.md --yes
-hermes -p oliver skills install https://raw.githubusercontent.com/dandacompany/vibe-finance-kit/e542710/skills/finance-research-discipline/SKILL.md --yes
-hermes -p oliver skills install https://raw.githubusercontent.com/dandacompany/vibe-finance-kit/e542710/skills/etf-value-analysis/SKILL.md --yes
+hermes -p ada skills install dandacompany/vibe-finance-kit/finance-research-discipline --yes
+hermes -p ada skills install dandacompany/vibe-finance-kit/etf-value-analysis --yes
+hermes -p ada skills install dandacompany/vibe-finance-kit/backtest-audit --yes
+hermes -p oliver skills install dandacompany/vibe-finance-kit/finance-research-discipline --yes
+hermes -p oliver skills install dandacompany/vibe-finance-kit/etf-value-analysis --yes
 ```
 
 Oliver의 새 세션에서는 공개자료 조사 Skill 두 개가 보이고 주문·브로커·계좌 도구가 없는지 확인합니다.
