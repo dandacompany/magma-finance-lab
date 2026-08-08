@@ -52,13 +52,23 @@ guardrails/      투자 가드레일 문서 (제공된 템플릿을 사람이 �
    ```
 3. 같은 호스트·OS 사용자의 대화형 터미널에서 `kiwoomcli setup`을 실행합니다. 서버는 `demo`, 별칭은 `모의계좌`로 설정하고 OS Keyring에 저장합니다.
 4. 새 Sam 세션에서 `command -v kiwoomcli`, `auth status --profile 모의계좌`, `doctor`를 다시 확인합니다.
-5. 8.2에서는 `python3 scripts/validate_artifact.py examples/etf-analysis-snapshot.json`으로
-   제공된 분석 계약과 content hash를 검증합니다.
+5. 설치한 저장소 버전은 `git rev-parse --short HEAD`로 확인합니다.
+6. 8.2에서는 이번 수집 결과로 `artifacts/analysis/etf-analysis-snapshot-069500.json`을
+   만든 뒤 `python3 scripts/validate_artifact.py artifacts/analysis/etf-analysis-snapshot-069500.json`으로 검증합니다.
 
 ## 장기 일봉 수집
 
-```bash
-python3 scripts/backfill_prices.py --profile 모의계좌 --pages 5 --minimum-common-bars 2500
+먼저 `PROMPTS.md`의 **5. 실제 수집 카드 만들기**로 Sam·Oliver 카드를 구성하고,
+Sam 카드에는 **3. Sam 수집 카드에 넣을 장기 일봉 요청**을 입력합니다.
+Sam이 모의계좌 프로필, 종목코드, 수집 범위, 출력 경로, API 호출 간격을 먼저
+보고하면 내용을 확인한 뒤 실행을 승인합니다.
+
+수집 결과의 저장 위치는 다음과 같습니다.
+
+```text
+수정주가 확정 일봉  → Supabase finance.daily_prices
+ETF 분석 근거       → JSON ETFAnalysisSnapshot
+분석 테이블 SQL     → 로컬 검토본
 ```
 
 KODEX 200과 TIGER 200의 수정주가 확정 일봉을 수집하고, 두 종목의 공통 거래일이
@@ -68,9 +78,13 @@ KODEX 200과 TIGER 200의 수정주가 확정 일봉을 수집하고, 두 종목
 이 범위는 일봉 분할매수 실습의 보정·평가 구간을 나누기 위한 것입니다. 현재의
 ETF 가치지표 스냅샷을 과거 매매 신호처럼 소급 적용하지 않습니다.
 
+8.2의 데이터 비교는 KODEX 200과 TIGER 200 두 종목으로 수행합니다. 8.3 백테스트의
+실행 입력은 두 종목의 공통 장기 가격 이력이고, ETF 분석 JSON은 상품 구조와 결과의
+한계를 설명하는 근거입니다. 후속 주문 시연 범위는 별도 유닛의 가드레일에서 정합니다.
+
 ## 주의
 
 - **실전 계좌를 `kiwoomcli setup`에 등록하지 마세요.** 실습은 `demo` 모의계좌만 사용합니다.
 - 접속 키·토큰·계좌번호는 커밋·채팅·로그에 남기지 않습니다. 키움 자격 증명을 저장소 `.env`에 넣지 않습니다.
 - 이 저장소의 전략·코드·결과는 교육용입니다. 특정 상품의 매수 권유가 아니며, 과거 데이터의 결과가 미래를 보장하지 않습니다.
-- `supabase/migrations/`의 SQL은 로컬 검토본입니다. 녹화 중 라이브 데이터베이스에 적용하지 않습니다.
+- `supabase/migrations/`의 SQL은 로컬 검토본입니다. 대상과 예상 행 수를 사람이 확인하기 전에는 라이브 데이터베이스에 적용하지 않습니다.
