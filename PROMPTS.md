@@ -232,11 +232,11 @@ supabase 마이그레이션 폴더에서 finance core 마이그레이션 SQL을 
 Sam 수집 카드와 Ada 품질 검증이 끝난 뒤 진행합니다.
 
 ```text
-artifacts/market/price-history-coverage.json과 같은 폴더의
-supabase-upsert-*.sql 파일을 검토해줘.
+Sam이 수집하며 남긴 시세 산출물 폴더에서 수집 결과 요약과
+Supabase 적재용 SQL 파일들을 찾아 검토해줘.
 
 아직 실행하지 말고 파일 수, 대상 스키마와 테이블, 종목별 예상 행 수,
-ON CONFLICT 키, 공통 거래일 수, 발견한 오류를 먼저 보고해줘.
+중복 적재를 막는 ON CONFLICT 키, 공통 거래일 수, 발견한 오류를 먼저 보고해줘.
 finance 이외의 스키마는 검토 대상에서 제외하고 비밀값은 출력하지 마.
 ```
 
