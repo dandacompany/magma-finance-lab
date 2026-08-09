@@ -133,17 +133,42 @@ uv run python scripts/setup_hermes.py
 
 Oliver의 새 세션에서는 공개자료 조사 Skill 두 개가 보이고 주문·브로커·계좌 도구가 없는지 확인합니다.
 
+```text
+현재 설치된 finance-research-discipline과 etf-value-analysis Skill을 확인해줘.
+주문·브로커·계좌 도구가 있다면 이름을 보고하고, 없다면 없다고 답해줘.
+```
+
 Ada 새 세션에서 고정 샘플을 먼저 검증합니다.
 
 ```text
 $HOME/.hermes/workspace/vibe-finance-kit/examples/etf-analysis-snapshot.json을 읽고
-Vibe Finance Kit의 읽기 전용 도구로 검증해줘.
-valid, errors, warnings, order_eligible만 보고하고 파일은 수정하지 마.
+validate_etf_snapshot 도구를 실제로 호출해줘.
+valid, errors, warnings, order_eligible만 보여줘.
 ```
 
 설치 증거 파일 `artifacts/setup/setup-receipt-vibe-finance-kit.json`은 setup의
 마지막 단계가 자동으로 작성합니다. 별도로 만들 필요 없이 0번 재료 점검에서 doctor
 결과와 고정 샘플 검증 결과를 요약해 확인합니다. 키·토큰·계좌번호는 기록되지 않습니다.
+
+이어서 새 Sam 세션에서 키움 연결을 확인하고 결과를 증거 파일로 남깁니다.
+
+```text
+다음 세 명령을 실행하고 명령 경로, 모의계좌 인증 상태, doctor 결과만 요약해줘.
+비밀값과 계좌번호는 출력하지 마.
+
+command -v kiwoomcli
+kiwoomcli auth status --profile 모의계좌
+kiwoomcli doctor
+```
+
+```text
+방금 확인한 키움 연결 결과를 contracts/broker-capabilities.schema.json에 맞춰
+artifacts/setup/broker-capabilities.json으로 저장해줘.
+profile은 모의계좌, mode는 demo로 기록해. quote_read, daily_candles_read,
+balance_read는 이번 preflight에서 실제로 확인한 범위만 true로 기록하고
+order_enabled는 false로 유지해. 키·시크릿·토큰·계좌번호는 저장하지 마.
+저장 뒤 스키마를 다시 검증해줘.
+```
 
 ## 2. 데이터 계약 검토 (Ada)
 
@@ -166,21 +191,26 @@ Ada의 Supabase MCP로 현재 연결된 프로젝트 이름과 project ref, `fin
 
 ```text
 현재 연결된 Supabase 프로젝트의 이름과 project ref를 확인하고
-finance 스키마에 symbols, daily_prices, positions, orders가 있는지 조회해줘.
-각 테이블의 RLS 상태도 확인하되 아직 변경하지 마.
+finance 스키마의 symbols, daily_prices, positions, orders 존재 여부와
+각 테이블의 RLS 상태를 확인해줘. 아직 변경하지 마.
+비밀값과 연결 문자열은 출력하지 마.
+```
 
-핵심 4개 테이블이 없으면 supabase 마이그레이션 폴더에서
-finance core 마이그레이션 SQL을 찾아 읽고
-생성할 스키마·테이블·인덱스와 권한 변경을 먼저 보고해줘.
-분석 계약 파일은 이번 적용에서 제외해.
+핵심 4개 테이블이 없으면 core SQL의 적용 계획만 먼저 받습니다.
+
+```text
+supabase 마이그레이션 폴더에서 finance core 마이그레이션 SQL을 찾아 검토해줘.
+생성할 스키마, 테이블, 인덱스, RLS 변경, 권한 변경을 항목별로 보고해줘.
+아직 실행하지 말고 finance 이외의 객체가 포함되어 있으면 중단해.
+분석 계약 마이그레이션은 검토 대상에서 제외해.
 ```
 
 대상 project ref와 생성 객체를 확인한 뒤에만 다음 요청으로 core SQL 실행을 승인합니다.
 
 ```text
-확인한 project ref에 finance core SQL만 실행해줘.
-완료 후 핵심 4개 테이블과 RLS 활성 상태를 다시 조회해줘.
-분석 계약 SQL과 Data API grant는 적용하지 마.
+확인한 core SQL만 실행해줘.
+완료 후 symbols, daily_prices, positions, orders와 RLS 상태를 다시 조회해줘.
+분석 테이블 SQL은 실행하지 마.
 ```
 
 ## 3. Sam 수집 카드에 넣을 장기 일봉 요청
@@ -189,22 +219,9 @@ finance core 마이그레이션 SQL을 찾아 읽고
 칸반 카드에서 각각 실행하지 않습니다. 두 ETF의 수정주가 확정 일봉을 각각 최대
 3,000개 수집하며, 당일 봉은 제외하고 공통 거래일이 2,500개 미만이면 성공 처리하지 않습니다.
 
-```text
-작업 폴더를 ~/.hermes/workspace/magma-finance-lab으로 고정하고
-그 안의 scripts/backfill_prices.py를 사용해서
-KODEX 200과 TIGER 200의 수정주가 확정 일봉을 수집할 준비를 해줘.
-
-아직 실행하지 말고 사용할 모의계좌 프로필, 종목코드 두 개,
-종목별 최대 페이지와 최대 일봉 수, 최소 공통 거래일 수,
-생성될 파일과 저장 경로, 키움 API 호출 간격을 먼저 보고해줘.
-주문 도구는 사용하지 말고 비밀값과 계좌번호는 출력하지 마.
-```
-
-5절에서 만든 카드가 이 범위를 보고하면, 같은 카드에서 다음처럼 승인합니다.
-
-```text
-보고한 범위로 수집을 진행해줘.
-```
+수집 범위와 성공 기준은 5절에서 만드는 Sam 카드 본문에 미리 기록합니다.
+카드가 dispatch되면 별도 승인 대화 없이 실행되며, 완료 후 카드 로그와 산출물에서
+결과를 확인합니다.
 
 출력의 `gate_passed=true`, 두 종목의 `adjusted=true`, `common_bars`와
 `common_start`·`common_end`를 확인합니다. 생성된 원천 스냅샷과 SQL은
@@ -226,11 +243,7 @@ finance 이외의 스키마는 검토 대상에서 제외하고 비밀값은 출
 대상과 행 수를 확인한 뒤에만 다음 요청을 입력합니다.
 
 ```text
-검토한 범위로 Supabase 적재를 진행해줘.
-적재 뒤 069500과 102110 각각의 행 수·최소일·최대일·adjusted 값과
-두 종목의 공통 거래일 수·시작일·종료일을 확인해줘.
-중복 키, 비정상적인 시가·고가·저가·종가, 오늘 이후 거래일이
-하나라도 있으면 성공 처리하지 마. 비밀값과 접속 문자열은 출력하지 마.
+검토한 범위로 적재를 진행하고 결과를 검산해줘.
 ```
 
 2,500개는 모든 투자 연구에 통용되는 절대 기준이 아닙니다. 이 실습의 일봉
@@ -239,38 +252,32 @@ finance 이외의 스키마는 검토 대상에서 제외하고 비밀값은 출
 
 ## 5. 실제 수집 카드 만들기 (Sam·Oliver)
 
+보드 개설과 카드 생성은 Sam 세션에서 진행합니다.
+
 ```text
-현재 활성 보드와 남아 있는 카드를 먼저 보여줘.
-'자산운용팀 시세 수집'이라는 이름으로 새 보드를 만든 뒤 실제 수집 카드 두 장을 만들어줘.
-아직 실행하지는 마.
-
-- Sam: KODEX 200(069500)과 TIGER 200(102110)의 수정주가 확정 장기 일봉을 함께 수집하고 공통기간 계산
-- Oliver: 두 ETF의 운용사·거래소 공개자료와 기준일 조사
-
-Sam 카드에는 3절의 실행 전 보고 조건을 본문으로 넣는다. 키움 모의계좌의 공식 CLI를 사용하고 당일 미확정봉을 제외한다.
-키움 API 호출은 순차 실행하고 초당 1건을 넘기지 않는다.
-Oliver 카드는 공개자료의 URL과 기준일을 함께 남기고 결과를
-artifacts/research/etf-product-sources.json에 저장한다.
-두 카드의 작업 폴더는 ~/.hermes/workspace/magma-finance-lab으로 고정한다.
-두 카드 모두 주문 도구를 호출하지 않고 비밀값과 계좌번호를 출력하지 않는다.
+현재 보드와 남아 있는 카드를 확인해줘.
+'자산운용팀 시세 수집'이라는 이름으로 새 보드를 만들고, 모든 카드의 workdir을
+$HOME/.hermes/workspace/magma-finance-lab으로 고정해줘.
+카드를 만들기 전에 Sam Gateway heartbeat와 Sam·Oliver·Ada의 현재 인증 상태를 보고해줘.
 ```
 
-보드에 표시된 실제 카드 ID와 의존성을 확인합니다. 3절의 확인·승인 요청은 여기서 만든
-Sam 카드에 이어서 입력하며, 같은 수집 카드를 다시 만들지 않습니다.
+```text
+자산운용팀 시세 수집 보드에 다음 두 카드를 만들어줘.
 
-카드 실행 전 Sam Gateway heartbeat와 세 프로필 인증을 확인합니다. Sam·Oliver 카드를
+1) Sam: KODEX 200(069500)과 TIGER 200(102110)의 수정주가 확정 일봉을
+   최대 5페이지·종목별 최대 3,000봉으로 순차 수집한다.
+   호출 간격은 1초 이상, scripts/backfill_prices.py를 사용하고
+   artifacts/market/에 저장한다. 성공 기준은 두 종목 공통 거래일
+   2,500개 이상으로 카드에 기록한다. 모의계좌 프로필만 사용한다.
+2) Oliver: 두 ETF의 운용사·거래소 공식 공개자료에서 상품 구조, 총보수,
+   추적오차·괴리율·순자산·기초지수 가치지표의 출처와 기준일을 조사하고
+   artifacts/research/etf-product-sources.json에 저장한다.
+
+두 카드 모두 아직 실행하지 말고 카드 ID와 assignee, workdir, 출력 경로만 보여줘.
+```
+
+보드에 표시된 실제 카드 ID와 의존성을 확인합니다. Sam·Oliver 카드를
 `ready`로 전환하고 dispatch한 뒤 실제 상태가 `in_progress`로 바뀌는지 확인합니다.
-
-### 5-1. 별도의 실패 격리 연습
-
-```text
-실제 수집 카드와 의존성을 공유하지 않는 연습용 카드를 하나 만들어줘.
-잘못된 종목코드 000000을 키움 모의계좌에서 조회하고,
-실패하면 원인과 필요한 다음 입력을 기록한 뒤 blocked로 남겨줘.
-이 카드를 실제 ETF 수집이나 Ada 품질 카드의 선행 조건에 연결하지 마.
-```
-
-실패 연습 카드가 막혀도 실제 수집 카드와 품질 검증이 계속되는지 확인합니다.
 
 선행 카드 완료만 기다리는 상황은 `dependency`입니다. 반면 미확정봉처럼
 사람의 교정 입력이 필요한 실패는 `needs_input`, 필요한 조회 기능이나 자격 증명이
@@ -279,14 +286,12 @@ Sam 카드에 이어서 입력하며, 같은 수집 카드를 다시 만들지 �
 ## 6. 품질 게이트 연결 (Ada)
 
 ```text
-앞의 실제 수집 카드 두 장이 모두 끝난 뒤에만 시작하는 품질 검증 카드를 만들어줘.
-작업 폴더는 ~/.hermes/workspace/magma-finance-lab으로 고정하고,
-Sam의 artifacts/market/ 결과와 Oliver의 artifacts/research/etf-product-sources.json을
-입력 절대경로로 기록해.
-별도의 000000 실패 연습 카드는 의존성에 포함하지 마.
-검증 항목은 종목코드 정규화, 중복 거래일, 시가·고가·저가·종가 범위, 확정봉 여부,
-as_of와 available_at, source와 warnings다.
-선행 카드 중 하나가 완료되지 않으면 품질 검증을 성공 처리하지 마.
+Ada 품질 검증 카드를 추가해줘.
+Sam의 artifacts/market/ 결과와
+Oliver의 artifacts/research/etf-product-sources.json을 입력 절대경로로 기록하고,
+두 카드가 완료된 뒤에만 시작하도록 dependency를 연결해.
+공통 거래일 2,500개 이상, 중복 거래일, OHLC 관계, 수정주가 여부,
+미래 날짜를 검증하도록 적어줘. 아직 실행하지 마.
 ```
 
 검증 fixture는 계약 형식과 실패 분류를 연습하기 위한 자료입니다.
@@ -304,7 +309,6 @@ ETFAnalysisSnapshot 계약에 맞는 JSON을 만들어줘.
 가격 신호는 이번 확정 일봉에서 계산하고, 상품 품질과 기초지수 가치지표는
 Oliver가 확인한 출처와 기준일만 사용해. 같은 기준일에 확보하지 못한 값은 null로 두고
 missing_fields와 warnings에 사유를 남겨줘. 주문 가능 여부는 false로 유지하고
-상위 폴더가 없으면 만든 뒤
 artifacts/analysis/etf-analysis-snapshot-069500.json에 저장해줘.
 비밀값과 계좌번호는 출력하지 마.
 ```
@@ -312,10 +316,11 @@ artifacts/analysis/etf-analysis-snapshot-069500.json에 저장해줘.
 새 파일의 입력 출처와 기준 시각을 확인한 뒤 읽기 전용 도구로 검증합니다.
 
 ```text
-artifacts/analysis/etf-analysis-snapshot-069500.json이 ETFAnalysisSnapshot 계약을 통과하는지
+작업 폴더의 artifacts/analysis/etf-analysis-snapshot-069500.json 절대경로를 먼저
+확인하고, 그 JSON이 ETFAnalysisSnapshot 계약을 통과하는지
 읽기 전용 도구로 검증해줘.
-valid, errors, warnings, order_eligible을 그대로 보고하고,
-null인 가치지표를 추정해서 채우지 마.
+값을 추정하거나 null을 다른 숫자로 대체하지 말고,
+valid, errors, warnings, order_eligible만 반환해줘.
 ```
 
 로컬에서도 같은 content hash를 확인할 수 있습니다.
@@ -337,12 +342,12 @@ python3 scripts/validate_artifact.py artifacts/analysis/etf-analysis-snapshot-06
 Gateway를 복구한 뒤 다시 확인합니다.
 
 ```text
-평일 한국시간 18시 30분에 069500과 102110의 직전 확정 일봉을 수집하는
-Hermes cron을 만들어줘. Sam의 종목별 확정봉 수집이 끝나면 Ada의 가격 품질 검증
-카드를 실행하도록 해. Oliver의 ETF 상품 구조와 가치지표 조사는 매일 반복하지 않고
-공식 자료 변경 확인 또는 별도 주기로 운영한다. 주문은 만들거나 실행하지 않는다.
-작업 폴더는 ~/.hermes/workspace/magma-finance-lab으로 고정해.
-등록 뒤 cron ID, 일정, 다음 실행 시각, profile, workdir만 보여주고 비밀값은 출력하지 마.
+평일 18시 30분에 실행되는 Hermes cron을 만들어줘.
+profile은 sam, workdir은 $HOME/.hermes/workspace/magma-finance-lab으로 고정해.
+KODEX 200(069500)과 TIGER 200(102110)의 직전 확정 일봉을 순차 수집하고,
+Sam 수집이 끝나면 Ada 가격 품질 검증 카드를 실행해.
+Oliver 공개자료는 이 매일 cron에 포함하지 마.
+등록 뒤 cron ID, 일정, 다음 실행 시각, profile, workdir만 보여줘.
 ```
 
 지속 운영하지 않을 경우에는 생성된 cron ID와 종목코드를 확인한 뒤 작업을 제거하고,
