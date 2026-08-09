@@ -169,7 +169,8 @@ Ada의 Supabase MCP로 현재 연결된 프로젝트 이름과 project ref, `fin
 finance 스키마에 symbols, daily_prices, positions, orders가 있는지 조회해줘.
 각 테이블의 RLS 상태도 확인하되 아직 변경하지 마.
 
-핵심 4개 테이블이 없으면 20260806090000_finance_core.sql을 읽고
+핵심 4개 테이블이 없으면 supabase 마이그레이션 폴더에서
+finance core 마이그레이션 SQL을 찾아 읽고
 생성할 스키마·테이블·인덱스와 권한 변경을 먼저 보고해줘.
 분석 계약 파일은 이번 적용에서 제외해.
 ```
