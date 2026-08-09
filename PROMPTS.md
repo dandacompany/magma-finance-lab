@@ -83,38 +83,74 @@ Keyring은 OS 사용자 단위라서 같은 사용자의 Ada와 Sam을 물리적
 
 # 투자 DB 설계와 수집 (8.2)
 
-실행 순서는 **1 → 2 → 5 → 3 → 6 → 4 → 7 → 8**입니다. 먼저 권한과 계약을
-확인하고 카드를 만든 뒤, 같은 Sam 카드에서 범위를 확인·승인합니다. 품질 검증이
-끝난 다음 Supabase 적재 범위를 승인하고 분석 JSON을 만듭니다.
+실행 순서는 **0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8**입니다. 먼저 8.1의 주문
+프로젝트가 현재 경로에 있는지 확인하고, 분석 도구 설치가 끝나면 같은 경로에서 세
+프로필을 시작해 데이터베이스·카드를 차례로 구성합니다.
+같은 Sam 카드에서 수집 범위를 확인·승인하고, 품질 검증이 끝난 뒤 Supabase 적재
+범위를 승인합니다.
+
+## 0. 주문 프로젝트 재료 점검 (Ada)
+
+8.1에서 만든 주문 프로젝트 폴더에서 세션을 시작합니다.
+
+```bash
+cd "$HOME/.hermes/workspace/magma-finance-lab"
+```
+
+Sam·Oliver·Ada 세션은 모두 이 폴더에서 시작합니다. 오늘 쓸 재료가 제자리에
+있는지는 터미널 대신 Ada에게 자연어로 확인을 맡깁니다.
+
+```text
+오늘 작업에 필요한 재료가 이 폴더에 있는지 확인해서 보고해줘.
+장기 일봉을 수집할 스크립트, Supabase core 마이그레이션 SQL,
+setup이 남긴 vibe-finance-kit 설치 증거 파일 세 가지야.
+설치 증거에서는 doctor 결과와 고정 샘플 검증 결과만 요약해줘.
+비밀값은 출력하지 마.
+```
+
+칸반을 실행하기 전에는 활성 보드, 잔존 카드, Sam Gateway heartbeat, 세 프로필
+인증 상태도 확인합니다.
 
 ## 1. Skill과 MCP 경계 확인 (Ada·Oliver)
 
 ```text
-Vibe Finance Kit의 finance_kit_doctor를 호출해서
-1) 읽기 전용 모드인지
-2) 발견된 도구가 4개인지
-3) order_tools가 빈 배열인지
-4) broker_credentials_required가 false인지
-확인해줘. 주문·계좌·인증 도구를 추가하거나 호출하지 마.
+vibe-finance-kit의 finance_kit_doctor를 실제로 호출해줘.
+read_only, order_tools, broker_credentials_required만 보여줘.
 ```
 
-Skill 설치가 필요한 경우에는 검증된 프로젝트 식별자를 사용합니다.
+Vibe Finance Kit을 처음 설치할 때는 macOS, Linux·WSL, Windows PowerShell에서 같은
+명령을 사용합니다.
 
-```bash
-hermes -p ada skills install dandacompany/vibe-finance-kit/finance-research-discipline --yes
-hermes -p ada skills install dandacompany/vibe-finance-kit/etf-value-analysis --yes
-hermes -p ada skills install dandacompany/vibe-finance-kit/backtest-audit --yes
-hermes -p oliver skills install dandacompany/vibe-finance-kit/finance-research-discipline --yes
-hermes -p oliver skills install dandacompany/vibe-finance-kit/etf-value-analysis --yes
+```text
+cd "$HOME/.hermes/workspace"
+git clone https://github.com/dandacompany/vibe-finance-kit.git
+cd vibe-finance-kit
+uv run python scripts/setup_hermes.py
 ```
+
+마지막 명령이 프로젝트 환경, Ada Skill 3개, Oliver Skill 2개, Ada MCP를 한 번에
+설정합니다. MCP 도구 4개 활성화 질문이 나오면 `Y`를 입력합니다.
 
 Oliver의 새 세션에서는 공개자료 조사 Skill 두 개가 보이고 주문·브로커·계좌 도구가 없는지 확인합니다.
+
+Ada 새 세션에서 고정 샘플을 먼저 검증합니다.
+
+```text
+$HOME/.hermes/workspace/vibe-finance-kit/examples/etf-analysis-snapshot.json을 읽고
+Vibe Finance Kit의 읽기 전용 도구로 검증해줘.
+valid, errors, warnings, order_eligible만 보고하고 파일은 수정하지 마.
+```
+
+설치 증거 파일 `artifacts/setup/setup-receipt-vibe-finance-kit.json`은 setup의
+마지막 단계가 자동으로 작성합니다. 별도로 만들 필요 없이 0번 재료 점검에서 doctor
+결과와 고정 샘플 검증 결과를 요약해 확인합니다. 키·토큰·계좌번호는 기록되지 않습니다.
 
 ## 2. 데이터 계약 검토 (Ada)
 
 ```text
-이 저장소의 contracts/와
-supabase/migrations/20260806090000_finance_contract.sql을 읽어줘.
+이 저장소의 contracts/와 다음 두 파일을 읽어줘.
+- supabase/migrations/20260806090000_finance_core.sql
+- supabase/migrations/20260806091000_finance_analysis_contract.sql
 
 라이브 데이터베이스에는 적용하지 말고 다음만 표로 검토해줘.
 1) 종목코드가 A 접두 없는 6자리로 제한되는지
@@ -124,6 +160,28 @@ supabase/migrations/20260806090000_finance_contract.sql을 읽어줘.
 5) Data API grant와 RLS가 각각 어떻게 제한되는지
 ```
 
+Ada의 Supabase MCP로 현재 연결된 프로젝트 이름과 project ref, `finance` 스키마의
+테이블 목록과 RLS 상태를 조회합니다. 비밀값은 출력하지 않습니다. 핵심 4개 테이블이
+없으면 `finance_core.sql`의 생성 객체와 권한 변경만 먼저 보고하게 합니다.
+
+```text
+현재 연결된 Supabase 프로젝트의 이름과 project ref를 확인하고
+finance 스키마에 symbols, daily_prices, positions, orders가 있는지 조회해줘.
+각 테이블의 RLS 상태도 확인하되 아직 변경하지 마.
+
+핵심 4개 테이블이 없으면 20260806090000_finance_core.sql을 읽고
+생성할 스키마·테이블·인덱스와 권한 변경을 먼저 보고해줘.
+분석 계약 파일은 이번 적용에서 제외해.
+```
+
+대상 project ref와 생성 객체를 확인한 뒤에만 다음 요청으로 core SQL 실행을 승인합니다.
+
+```text
+확인한 project ref에 finance core SQL만 실행해줘.
+완료 후 핵심 4개 테이블과 RLS 활성 상태를 다시 조회해줘.
+분석 계약 SQL과 Data API grant는 적용하지 마.
+```
+
 ## 3. Sam 수집 카드에 넣을 장기 일봉 요청
 
 아래 요청은 5절에서 만드는 Sam 수집 카드의 본문입니다. 같은 요청을 별도 세션과
@@ -131,7 +189,8 @@ supabase/migrations/20260806090000_finance_contract.sql을 읽어줘.
 3,000개 수집하며, 당일 봉은 제외하고 공통 거래일이 2,500개 미만이면 성공 처리하지 않습니다.
 
 ```text
-현재 작업 폴더의 scripts/backfill_prices.py를 사용해서
+작업 폴더를 ~/.hermes/workspace/magma-finance-lab으로 고정하고
+그 안의 scripts/backfill_prices.py를 사용해서
 KODEX 200과 TIGER 200의 수정주가 확정 일봉을 수집할 준비를 해줘.
 
 아직 실행하지 말고 사용할 모의계좌 프로필, 종목코드 두 개,
@@ -180,19 +239,26 @@ finance 이외의 스키마는 검토 대상에서 제외하고 비밀값은 출
 ## 5. 실제 수집 카드 만들기 (Sam·Oliver)
 
 ```text
-칸반에 실제 수집 카드 두 장을 만들어줘. 아직 실행하지는 마.
+현재 활성 보드와 남아 있는 카드를 먼저 보여줘.
+이번 8.2 실행에 사용할 새 보드를 만든 뒤 실제 수집 카드 두 장을 만들어줘.
+아직 실행하지는 마.
 
 - Sam: KODEX 200(069500)과 TIGER 200(102110)의 수정주가 확정 장기 일봉을 함께 수집하고 공통기간 계산
 - Oliver: 두 ETF의 운용사·거래소 공개자료와 기준일 조사
 
 Sam 카드에는 3절의 실행 전 보고 조건을 본문으로 넣는다. 키움 모의계좌의 공식 CLI를 사용하고 당일 미확정봉을 제외한다.
 키움 API 호출은 순차 실행하고 초당 1건을 넘기지 않는다.
-Oliver 카드는 공개자료의 URL과 기준일을 함께 남긴다.
+Oliver 카드는 공개자료의 URL과 기준일을 함께 남기고 결과를
+artifacts/research/etf-product-sources.json에 저장한다.
+두 카드의 작업 폴더는 ~/.hermes/workspace/magma-finance-lab으로 고정한다.
 두 카드 모두 주문 도구를 호출하지 않고 비밀값과 계좌번호를 출력하지 않는다.
 ```
 
 보드에 표시된 실제 카드 ID와 의존성을 확인합니다. 3절의 확인·승인 요청은 여기서 만든
 Sam 카드에 이어서 입력하며, 같은 수집 카드를 다시 만들지 않습니다.
+
+카드 실행 전 Sam Gateway heartbeat와 세 프로필 인증을 확인합니다. Sam·Oliver 카드를
+`ready`로 전환하고 dispatch한 뒤 실제 상태가 `in_progress`로 바뀌는지 확인합니다.
 
 ### 5-1. 별도의 실패 격리 연습
 
@@ -213,6 +279,9 @@ Sam 카드에 이어서 입력하며, 같은 수집 카드를 다시 만들지 �
 
 ```text
 앞의 실제 수집 카드 두 장이 모두 끝난 뒤에만 시작하는 품질 검증 카드를 만들어줘.
+작업 폴더는 ~/.hermes/workspace/magma-finance-lab으로 고정하고,
+Sam의 artifacts/market/ 결과와 Oliver의 artifacts/research/etf-product-sources.json을
+입력 절대경로로 기록해.
 별도의 000000 실패 연습 카드는 의존성에 포함하지 마.
 검증 항목은 종목코드 정규화, 중복 거래일, 시가·고가·저가·종가 범위, 확정봉 여부,
 as_of와 available_at, source와 warnings다.
@@ -227,12 +296,14 @@ as_of와 available_at, source와 warnings다.
 먼저 이번에 수집한 가격과 Oliver의 조사 결과로 새 분석 JSON을 만듭니다.
 
 ```text
-이번에 수집한 KODEX 200 MarketSnapshot과 Oliver의 공식 공개자료 조사 결과를 사용해서
+이번에 수집한 KODEX 200 MarketSnapshot과
+artifacts/research/etf-product-sources.json을 사용해서
 ETFAnalysisSnapshot 계약에 맞는 JSON을 만들어줘.
 
 가격 신호는 이번 확정 일봉에서 계산하고, 상품 품질과 기초지수 가치지표는
 Oliver가 확인한 출처와 기준일만 사용해. 같은 기준일에 확보하지 못한 값은 null로 두고
 missing_fields와 warnings에 사유를 남겨줘. 주문 가능 여부는 false로 유지하고
+상위 폴더가 없으면 만든 뒤
 artifacts/analysis/etf-analysis-snapshot-069500.json에 저장해줘.
 비밀값과 계좌번호는 출력하지 마.
 ```
@@ -261,12 +332,16 @@ python3 scripts/validate_artifact.py artifacts/analysis/etf-analysis-snapshot-06
 
 ## 8. 매일 확정봉 수집 예약 (Sam)
 
+먼저 Sam Gateway heartbeat가 정상인지 확인합니다. stale이면 cron을 만들지 않고
+Gateway를 복구한 뒤 다시 확인합니다.
+
 ```text
 평일 한국시간 18시 30분에 069500과 102110의 직전 확정 일봉을 수집하는
 Hermes cron을 만들어줘. Sam의 종목별 확정봉 수집이 끝나면 Ada의 가격 품질 검증
 카드를 실행하도록 해. Oliver의 ETF 상품 구조와 가치지표 조사는 매일 반복하지 않고
 공식 자료 변경 확인 또는 별도 주기로 운영한다. 주문은 만들거나 실행하지 않는다.
-등록 뒤 cron ID, 일정, 다음 실행 시각만 보여주고 비밀값은 출력하지 마.
+작업 폴더는 ~/.hermes/workspace/magma-finance-lab으로 고정해.
+등록 뒤 cron ID, 일정, 다음 실행 시각, profile, workdir만 보여주고 비밀값은 출력하지 마.
 ```
 
 지속 운영하지 않을 경우에는 생성된 cron ID와 종목코드를 확인한 뒤 작업을 제거하고,
