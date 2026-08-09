@@ -320,9 +320,9 @@ null로 두고 missing_fields와 warnings에 사유를 남긴다.
 새 파일의 입력 출처와 기준 시각을 확인한 뒤 읽기 전용 도구로 검증합니다.
 
 ```text
-작업 폴더의 artifacts/analysis/etf-analysis-snapshot-069500.json 절대경로를 먼저
-확인하고, 그 JSON이 ETFAnalysisSnapshot 계약을 통과하는지
-읽기 전용 도구로 검증해줘.
+이 프로젝트의 분석 산출물 폴더에서 KODEX 200 ETF 분석 스냅샷 JSON을 찾아
+절대경로를 먼저 확인해줘. 예제 파일이 아니라 이번 실행에서 생성된 산출물이어야 해.
+그 JSON이 ETFAnalysisSnapshot 계약을 통과하는지 읽기 전용 도구로 검증해줘.
 값을 추정하거나 null을 다른 숫자로 대체하지 말고,
 valid, errors, warnings, order_eligible만 반환해줘.
 ```
