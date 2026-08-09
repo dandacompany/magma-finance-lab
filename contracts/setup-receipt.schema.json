@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dante-labs.com/contracts/setup-receipt.schema.json",
+  "title": "SetupReceipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project",
+    "source_url",
+    "installed_at",
+    "profile",
+    "workdir",
+    "required_env_names",
+    "session_preflight",
+    "doctor_result",
+    "first_read_only_call"
+  ],
+  "properties": {
+    "project": { "type": "string", "minLength": 1 },
+    "source_url": { "type": "string", "format": "uri" },
+    "version_or_commit": { "type": ["string", "null"], "minLength": 1 },
+    "installed_at": { "type": "string", "format": "date-time" },
+    "profile": { "type": "string", "minLength": 1 },
+    "workdir": { "type": "string", "minLength": 1 },
+    "env_file": { "type": ["string", "null"] },
+    "required_env_names": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "credential_owner": { "type": ["string", "null"] },
+    "cli_path": { "type": ["string", "null"] },
+    "auth_profile": { "type": ["string", "null"] },
+    "credential_store": { "type": ["string", "null"] },
+    "session_preflight": { "enum": ["pass", "fail"] },
+    "skill_check": { "type": ["string", "null"] },
+    "mcp_check": { "type": ["string", "null"] },
+    "doctor_result": { "enum": ["pass", "fail"] },
+    "first_read_only_call": { "type": "string", "minLength": 1 },
+    "recording_scene": { "type": ["string", "null"] }
+  }
+}

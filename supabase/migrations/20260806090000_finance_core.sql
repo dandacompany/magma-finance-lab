@@ -1,4 +1,4 @@
--- Local review contract. Do not apply to the live course database during recording.
+-- 8.2 live core schema. Review the target project and SQL before execution.
 
 create schema if not exists finance;
 
@@ -53,48 +53,13 @@ create table if not exists finance.orders (
   executed_at timestamptz
 );
 
-create table if not exists finance.etf_analysis_snapshots (
-  artifact_id text primary key,
-  symbol text not null references finance.symbols(symbol),
-  as_of timestamptz not null,
-  available_at timestamptz not null,
-  source text not null,
-  schema_version text not null,
-  content_hash text not null unique check (content_hash ~ '^sha256:[0-9a-f]{64}$'),
-  warnings text[] not null default '{}',
-  payload jsonb not null,
-  created_at timestamptz not null default now(),
-  check (available_at >= as_of),
-  check (payload ->> 'artifact_type' = 'ETFAnalysisSnapshot')
-);
-
-create table if not exists finance.backtest_reports (
-  artifact_id text primary key,
-  data_snapshot_id text not null,
-  strategy_spec_id text not null,
-  test_period daterange not null,
-  signal_at text not null,
-  execution_at text not null,
-  transaction_cost_bps numeric not null check (transaction_cost_bps >= 0),
-  benchmark text not null,
-  code_version text not null,
-  warnings text[] not null default '{}',
-  payload jsonb not null,
-  created_at timestamptz not null default now(),
-  check (payload ->> 'artifact_type' = 'BacktestReport')
-);
-
 create index if not exists daily_prices_trade_date_idx
   on finance.daily_prices (trade_date desc);
-create index if not exists etf_analysis_snapshots_symbol_as_of_idx
-  on finance.etf_analysis_snapshots (symbol, as_of desc);
 
 alter table finance.symbols enable row level security;
 alter table finance.daily_prices enable row level security;
 alter table finance.positions enable row level security;
 alter table finance.orders enable row level security;
-alter table finance.etf_analysis_snapshots enable row level security;
-alter table finance.backtest_reports enable row level security;
 
 revoke all privileges on all tables in schema finance
   from public, anon, authenticated, service_role;

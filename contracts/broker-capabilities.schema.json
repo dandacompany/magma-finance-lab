@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dante-labs.com/contracts/broker-capabilities.schema.json",
+  "title": "BrokerCapabilities",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_type",
+    "broker",
+    "profile",
+    "mode",
+    "checked_at",
+    "quote_read",
+    "daily_candles_read",
+    "balance_read",
+    "order_enabled",
+    "credential_store",
+    "secret_values_recorded"
+  ],
+  "properties": {
+    "artifact_type": { "const": "BrokerCapabilities" },
+    "broker": { "const": "kiwoom" },
+    "profile": { "type": "string", "minLength": 1 },
+    "mode": { "const": "demo" },
+    "checked_at": { "type": "string", "format": "date-time" },
+    "cli_path": { "type": "string", "minLength": 1 },
+    "quote_read": { "type": "boolean" },
+    "daily_candles_read": { "type": "boolean" },
+    "balance_read": { "type": "boolean" },
+    "order_enabled": { "const": false },
+    "credential_store": { "const": "os-keyring" },
+    "secret_values_recorded": { "const": false },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

@@ -40,21 +40,38 @@ guardrails/      투자 가드레일 문서 (제공된 템플릿을 사람이 �
 - `uv` + 키움 공식 CLI: `uv tool install kwcli`
 - Hermes 에이전트 (Sam·Ada·Oliver·Noah·Sophie 프로필)
 - `kiwoom-broker` 스킬 — `hermes skills install dandacompany/dante-skills/kiwoom-broker`
-- Vibe Finance Kit 고정 버전 `e542710` — 분석 근거 계약과 읽기 전용 검증 도구
+- Vibe Finance Kit — 공개 `main`을 설치하고 `doctor`와 고정 샘플로 정상 동작 확인
 
 ## 처음 5분 체크리스트
 
-1. GitHub에서 이 저장소를 Fork 하거나 Use this template으로 내 저장소를 만듭니다.
-2. 내 컴퓨터의 정해진 위치로 clone 합니다.
+1. 공개 스타터 저장소를 정해진 위치로 clone 합니다.
    ```bash
-   git clone (내 저장소 주소) ~/.hermes/workspace/magma-finance-lab
+   git clone https://github.com/dandacompany/magma-finance-lab.git ~/.hermes/workspace/magma-finance-lab
    cd ~/.hermes/workspace/magma-finance-lab && pwd
+   git remote remove origin
+   git remote -v
    ```
+2. `git remote -v`가 아무것도 출력하지 않는지 확인합니다. 이 프로젝트는 GitHub에 push하지 않고 로컬에서만 버전을 관리합니다.
 3. 같은 호스트·OS 사용자의 대화형 터미널에서 `kiwoomcli setup`을 실행합니다. 서버는 `demo`, 별칭은 `모의계좌`로 설정하고 OS Keyring에 저장합니다.
 4. 새 Sam 세션에서 `command -v kiwoomcli`, `auth status --profile 모의계좌`, `doctor`를 다시 확인합니다.
-5. 설치한 저장소 버전은 `git rev-parse --short HEAD`로 확인합니다.
-6. 8.2에서는 이번 수집 결과로 `artifacts/analysis/etf-analysis-snapshot-069500.json`을
+5. Sam·Oliver·Ada 세션은 모두 `~/.hermes/workspace/magma-finance-lab`에서 시작합니다.
+6. `scripts/backfill_prices.py`, `contracts/`, `supabase/migrations/`가 있는지 확인합니다.
+7. 8.2에서는 이번 수집 결과로 `artifacts/analysis/etf-analysis-snapshot-069500.json`을
    만든 뒤 `python3 scripts/validate_artifact.py artifacts/analysis/etf-analysis-snapshot-069500.json`으로 검증합니다.
+
+## Vibe Finance Kit 설치
+
+macOS, Linux·WSL, Windows PowerShell에서 같은 명령을 사용합니다.
+
+```text
+cd "$HOME/.hermes/workspace"
+git clone https://github.com/dandacompany/vibe-finance-kit.git
+cd vibe-finance-kit
+uv run python scripts/setup_hermes.py
+```
+
+마지막 명령이 프로젝트 환경, Ada Skill 3개, Oliver Skill 2개, Ada의 읽기 전용 MCP를
+설정하고 연결까지 확인합니다. `Enable all 4 tools?`가 나오면 `Y`를 입력합니다.
 
 ## 장기 일봉 수집
 
@@ -68,7 +85,8 @@ Sam이 모의계좌 프로필, 종목코드, 수집 범위, 출력 경로, API �
 ```text
 수정주가 확정 일봉  → Supabase finance.daily_prices
 ETF 분석 근거       → JSON ETFAnalysisSnapshot
-분석 테이블 SQL     → 로컬 검토본
+운영 4테이블 SQL    → 8.2에서 검토·승인 후 적용
+분석 2테이블 SQL    → 이후 유닛을 위한 로컬 검토본
 ```
 
 KODEX 200과 TIGER 200의 수정주가 확정 일봉을 수집하고, 두 종목의 공통 거래일이
@@ -87,4 +105,4 @@ ETF 가치지표 스냅샷을 과거 매매 신호처럼 소급 적용하지 않
 - **실전 계좌를 `kiwoomcli setup`에 등록하지 마세요.** 실습은 `demo` 모의계좌만 사용합니다.
 - 접속 키·토큰·계좌번호는 커밋·채팅·로그에 남기지 않습니다. 키움 자격 증명을 저장소 `.env`에 넣지 않습니다.
 - 이 저장소의 전략·코드·결과는 교육용입니다. 특정 상품의 매수 권유가 아니며, 과거 데이터의 결과가 미래를 보장하지 않습니다.
-- `supabase/migrations/`의 SQL은 로컬 검토본입니다. 대상과 예상 행 수를 사람이 확인하기 전에는 라이브 데이터베이스에 적용하지 않습니다.
+- `finance_core.sql`은 대상 프로젝트와 생성 객체를 확인한 뒤에만 적용합니다. `finance_analysis_contract.sql`은 8.2에서 라이브에 적용하지 않습니다.
