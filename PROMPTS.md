@@ -326,7 +326,7 @@ null로 두고 missing_fields와 warnings에 사유를 남긴다.
 절대경로를 먼저 확인해줘. 예제 파일이 아니라 이번 실행에서 생성된 산출물이어야 해.
 그 JSON이 ETFAnalysisSnapshot 계약을 통과하는지 읽기 전용 도구로 검증해줘.
 값을 추정하거나 null을 다른 숫자로 대체하지 말고,
-valid, errors, warnings, order_eligible만 반환해줘.
+찾은 파일의 절대경로와 valid, errors, warnings, order_eligible만 반환해줘.
 ```
 
 로컬에서도 같은 content hash를 확인할 수 있습니다.
