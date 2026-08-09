@@ -300,18 +300,21 @@ Oliver의 artifacts/research/etf-product-sources.json을 입력 절대경로로 
 
 ## 7. 이번 실행의 분석 스냅샷 생성·검증 (Ada)
 
-먼저 이번에 수집한 가격과 Oliver의 조사 결과로 새 분석 JSON을 만듭니다.
+분석 스냅샷 생성은 품질 카드에 dependency를 건 카드로 처리합니다. Sam 세션에서
+아래를 입력하면 품질 검증을 통과한 데이터만 입력으로 사용됩니다.
 
 ```text
-이번에 수집한 KODEX 200 MarketSnapshot과
-artifacts/research/etf-product-sources.json을 사용해서
-ETFAnalysisSnapshot 계약에 맞는 JSON을 만들어줘.
+자산운용팀 시세 수집 보드에 Ada 분석 스냅샷 카드를 추가해줘.
+품질 검증 카드가 완료된 뒤에만 시작하도록 dependency를 연결하고 바로 실행해줘.
 
+카드 내용: 이번에 수집한 KODEX 200 MarketSnapshot과
+Oliver가 저장한 ETF 공식 출처 조사 결과를 사용해서
+ETFAnalysisSnapshot 계약에 맞는 JSON을 만든다.
 가격 신호는 이번 확정 일봉에서 계산하고, 상품 품질과 기초지수 가치지표는
-Oliver가 확인한 출처와 기준일만 사용해. 같은 기준일에 확보하지 못한 값은 null로 두고
-missing_fields와 warnings에 사유를 남겨줘. 주문 가능 여부는 false로 유지하고
-artifacts/analysis/etf-analysis-snapshot-069500.json에 저장해줘.
-비밀값과 계좌번호는 출력하지 마.
+Oliver가 확인한 출처와 기준일만 사용한다. 같은 기준일에 확보하지 못한 값은
+null로 두고 missing_fields와 warnings에 사유를 남긴다.
+주문 가능 여부는 false로 유지하고 artifacts/analysis/ 아래에 저장한다.
+비밀값과 계좌번호는 출력하지 않는다.
 ```
 
 새 파일의 입력 출처와 기준 시각을 확인한 뒤 읽기 전용 도구로 검증합니다.
