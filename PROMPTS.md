@@ -300,8 +300,10 @@ Oliver의 artifacts/research/etf-product-sources.json을 입력 절대경로로 
 
 ## 7. 이번 실행의 분석 스냅샷 생성·검증 (Ada)
 
-분석 스냅샷 생성은 품질 카드에 dependency를 건 카드로 처리합니다. Sam 세션에서
-아래를 입력하면 품질 검증을 통과한 데이터만 입력으로 사용됩니다.
+분석 스냅샷 생성은 품질 카드에 dependency를 건 카드로 처리합니다. 칸반 대시보드에서
+직접 만들거나 Sam 세션에 아래를 입력합니다. 대시보드에서 만들 때는 제목을 별도로
+입력하고 workspace를 dir(공통 작업 폴더)로 지정합니다 — worktree로 만들면 산출물이
+`.worktrees/<카드ID>/` 격리 사본에 남습니다.
 
 ```text
 자산운용팀 시세 수집 보드에 Ada 분석 스냅샷 카드를 추가해줘.
