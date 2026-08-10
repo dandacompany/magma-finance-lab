@@ -7,13 +7,19 @@ t일 확정 종가로 판단하고 t+1일 시가에 체결한다. 전략과 일�
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
+import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Any
+
+
+ROOT = Path(__file__).resolve().parents[1]
+RULES_PATH = ROOT / "backtest" / "rules.md"
 
 
 @dataclass(frozen=True)
@@ -57,6 +63,39 @@ def load_bars(path: Path, start: str | None, end: str | None) -> list[Bar]:
     if len(bars) < 2:
         raise ValueError("backtest requires at least two finalized bars")
     return bars
+
+
+def short_digest(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()[:12]
+
+
+def data_snapshot_id(path: Path) -> str:
+    """입력 스냅샷의 신원. 문서가 artifact_id를 밝히면 그 값, 아니면 파일 해시."""
+    raw = path.read_bytes()
+    try:
+        document = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        document = None
+    if isinstance(document, dict) and document.get("artifact_id"):
+        return str(document["artifact_id"])
+    return "sha256:" + short_digest(raw)
+
+
+def strategy_spec_id() -> str | None:
+    if not RULES_PATH.exists():
+        return None
+    return f"rules.md@{short_digest(RULES_PATH.read_bytes())}"
+
+
+def code_version() -> str | None:
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return completed.stdout.strip() or None
 
 
 def drawdown(equity_curve: list[float]) -> float:
@@ -226,15 +265,34 @@ def build_report(args: argparse.Namespace, bars: list[Bar]) -> dict[str, Any]:
         bars, initial_cash=args.initial_cash, fee_bps=args.fee_bps,
         tax_bps=args.tax_bps, slippage_bps=args.slippage_bps,
     )
+    first, last = bars[0].trade_date, bars[-1].trade_date
+    test_period = {"start": first, "end": last, "bars": len(bars)}
+    if args.train_start or args.train_end:
+        train_period = {
+            "start": args.train_start or first,
+            "end": args.train_end or last,
+        }
+    else:
+        train_period = dict(test_period)
     return {
+        "artifact_id": f"backtest-report-{args.symbol}-{first}-{last}-p{args.p_target:g}",
         "artifact_type": "BacktestReport",
         "schema_version": "1.0.0",
         "status": "draft",
         "symbol": args.symbol,
-        "test_period": {"start": bars[0].trade_date, "end": bars[-1].trade_date, "bars": len(bars)},
+        "data_snapshot_id": data_snapshot_id(args.data),
+        "strategy_spec_id": strategy_spec_id(),
+        "code_version": code_version(),
+        "train_period": train_period,
+        "test_period": test_period,
         "signal_at": "t_close_final",
         "execution_at": "t_plus_1_open",
+        "execution_rule": "next_bar",
         "strategy": {"p_target": args.p_target, "d_trigger": args.d_trigger, "q_max": args.q_max, "cap_mode": args.cap},
+        "initial_capital": args.initial_cash,
+        "transaction_cost_bps": args.fee_bps + args.slippage_bps + args.tax_bps,
+        "parameter_selection_used_test_period": args.used_test_period,
+        "hand_check_passed": args.hand_check_passed,
         "costs": costs,
         "result": strategy,
         "benchmark": {"name": "buy_and_hold", **benchmark},
@@ -249,6 +307,16 @@ def main() -> int:
     parser.add_argument("--symbol", default="069500")
     parser.add_argument("--start")
     parser.add_argument("--end")
+    parser.add_argument("--train-start", help="파라미터를 고른 보정 구간 시작일")
+    parser.add_argument("--train-end", help="파라미터를 고른 보정 구간 종료일")
+    parser.add_argument(
+        "--hand-check-passed", action="store_true",
+        help="한 사이클을 사람이 손으로 검산해 스크립트와 일치함을 확인했다",
+    )
+    parser.add_argument(
+        "--used-test-period", action="store_true",
+        help="평가 구간을 보고 파라미터를 골랐음을 기록한다 (감사에서 거절된다)",
+    )
     parser.add_argument("-P", "--p-target", type=float, default=8)
     parser.add_argument("-D", "--d-trigger", type=float, default=3)
     parser.add_argument("-Q", "--q-max", type=int, default=10)

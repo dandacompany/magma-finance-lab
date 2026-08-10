@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dante-labs.com/contracts/backtest-report.schema.json",
+  "title": "BacktestReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_id",
+    "artifact_type",
+    "schema_version",
+    "status",
+    "symbol",
+    "data_snapshot_id",
+    "strategy_spec_id",
+    "code_version",
+    "train_period",
+    "test_period",
+    "signal_at",
+    "execution_at",
+    "execution_rule",
+    "strategy",
+    "initial_capital",
+    "transaction_cost_bps",
+    "parameter_selection_used_test_period",
+    "hand_check_passed",
+    "costs",
+    "result",
+    "benchmark",
+    "excess_return_pct_point",
+    "warnings"
+  ],
+  "$defs": {
+    "period": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "type": "string", "format": "date" },
+        "end": { "type": "string", "format": "date" },
+        "bars": { "type": "integer", "minimum": 2 }
+      }
+    },
+    "open_position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["quantity", "average_cost", "unrealized_pnl"],
+      "properties": {
+        "quantity": { "type": "integer", "minimum": 0 },
+        "average_cost": { "type": "number", "minimum": 0 },
+        "unrealized_pnl": { "type": "number" }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "required": [
+        "initial_cash",
+        "final_equity",
+        "return_pct",
+        "cagr_pct",
+        "mdd_pct",
+        "turnover_amount",
+        "turnover_ratio",
+        "max_invested_capital",
+        "trade_count",
+        "open_position"
+      ],
+      "properties": {
+        "initial_cash": { "type": "number", "exclusiveMinimum": 0 },
+        "final_equity": { "type": "number", "minimum": 0 },
+        "return_pct": { "type": "number" },
+        "cagr_pct": { "type": "number" },
+        "mdd_pct": { "type": "number", "maximum": 0 },
+        "turnover_amount": { "type": "number", "minimum": 0 },
+        "turnover_ratio": { "type": "number", "minimum": 0 },
+        "max_invested_capital": { "type": "number", "minimum": 0 },
+        "trade_count": { "type": "integer", "minimum": 0 },
+        "open_position": { "$ref": "#/$defs/open_position" }
+      }
+    }
+  },
+  "properties": {
+    "artifact_id": { "type": "string", "minLength": 1 },
+    "artifact_type": { "const": "BacktestReport" },
+    "schema_version": { "const": "1.0.0" },
+    "status": { "enum": ["draft", "reviewed"] },
+    "symbol": { "type": "string", "pattern": "^[0-9]{6}$" },
+    "data_snapshot_id": { "type": "string", "minLength": 1 },
+    "strategy_spec_id": { "type": ["string", "null"], "minLength": 1 },
+    "code_version": { "type": ["string", "null"], "minLength": 1 },
+    "train_period": { "$ref": "#/$defs/period" },
+    "test_period": { "$ref": "#/$defs/period" },
+    "signal_at": { "const": "t_close_final" },
+    "execution_at": { "const": "t_plus_1_open" },
+    "execution_rule": { "const": "next_bar" },
+    "strategy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p_target", "d_trigger", "q_max", "cap_mode"],
+      "properties": {
+        "p_target": { "type": "number", "exclusiveMinimum": 0 },
+        "d_trigger": { "type": "number", "minimum": 0 },
+        "q_max": { "type": "integer", "minimum": 1 },
+        "cap_mode": { "enum": ["A", "B"] }
+      }
+    },
+    "initial_capital": { "type": "number", "exclusiveMinimum": 0 },
+    "transaction_cost_bps": { "type": "number", "minimum": 0 },
+    "parameter_selection_used_test_period": { "type": "boolean" },
+    "hand_check_passed": { "type": "boolean" },
+    "costs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fee_bps", "sell_tax_bps", "slippage_bps", "dividends_included"],
+      "properties": {
+        "fee_bps": { "type": "number", "minimum": 0 },
+        "sell_tax_bps": { "type": "number", "minimum": 0 },
+        "slippage_bps": { "type": "number", "minimum": 0 },
+        "dividends_included": { "type": "boolean" }
+      }
+    },
+    "result": {
+      "allOf": [{ "$ref": "#/$defs/performance" }],
+      "required": ["trades"],
+      "properties": {
+        "trades": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["signal_date", "execution_date", "side", "quantity", "execution_open"],
+            "properties": {
+              "signal_date": { "type": "string", "format": "date" },
+              "execution_date": { "type": "string", "format": "date" },
+              "side": { "enum": ["BUY", "SELL"] },
+              "quantity": { "type": "integer", "minimum": 1 },
+              "execution_open": { "type": "integer", "minimum": 0 },
+              "forced_by_cap": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "benchmark": {
+      "allOf": [{ "$ref": "#/$defs/performance" }],
+      "required": ["name"],
+      "properties": {
+        "name": { "const": "buy_and_hold" }
+      }
+    },
+    "excess_return_pct_point": { "type": "number" },
+    "warnings": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  }
+}
