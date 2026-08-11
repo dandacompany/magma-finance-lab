@@ -4,7 +4,7 @@
 주문을 내지 않는다. 판단만 하고 그 결과를 판단 파일로 남긴다.
 집행은 사람 승인 후 별도 단계에서.
 
-  0. 오늘 판단·주문 기안이 5건이면 아무것도 하지 않는다
+  0. 오늘 판단·주문 기안이 이미 있으면 아무것도 하지 않는다
   1. 장이 열리지 않았으면 아무것도 하지 않는다
   2. 보유 0주면 1주 매수
   3. 현재가 >= 평단 * 1.08 이면 전량 매도
@@ -12,13 +12,14 @@
   5. 현재가 <= 평단 * 0.97 이면 2주, 아니면 1주 매수
 
 판정 0번은 DB가 아니라 저장소 안의 판단 파일(state/decisions/<날짜>.json)로 막는다.
-같은 날짜의 실행 결과는 이 파일 하나에 누적한다. DB 기록은 이 판단 파일을 근거로 별도 단계에서 남긴다.
+하루 한 번만 판정하므로, 같은 날 다시 실행하면 그 파일을 보고 아무것도 하지 않는다.
+DB 기록은 이 판단 파일을 근거로 별도 단계에서 남긴다.
 """
 import argparse, json, os, shutil, subprocess, sys
 from datetime import date
 
 P_TARGET, D_TRIGGER, Q_MAX = 8.0, 3.0, 10
-DAILY_DRAFT_MAX = 5
+DAILY_DRAFT_MAX = 1
 SYMBOL = "069500"
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -76,12 +77,17 @@ def main():
     today = date.today().isoformat()
     state_path = os.path.join(a.state_dir, today + ".json")
 
-    # 0) 같은 날 반복 실행은 허용하되 설정된 일일 한도에서 멈춘다
+    # 0) 하루 한 번만 판정한다. 오늘 판정 기록이 있으면 아무것도 하지 않는다
     daily_decisions = load_daily_decisions(state_path)
     if len(daily_decisions) >= DAILY_DRAFT_MAX:
-        print(json.dumps({"decision": "skip", "reason": "오늘 판단·주문 기안 한도 도달",
+        first = daily_decisions[0]
+        print(json.dumps({"decision": "skip", "reason": "오늘 이미 판정함",
+                          "already_decided_at": first.get("decided_at"),
+                          "already_decision": first.get("decision"),
+                          "already_quantity": first.get("quantity"),
                           "daily_count": len(daily_decisions),
-                          "daily_limit": DAILY_DRAFT_MAX}, ensure_ascii=False))
+                          "daily_limit": DAILY_DRAFT_MAX,
+                          "state_file": state_path}, ensure_ascii=False))
         return 0
 
     # 1) 장 개장
