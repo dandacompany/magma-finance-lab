@@ -71,6 +71,19 @@ class JudgeTest(unittest.TestCase):
         self.assertEqual(("BUY", 2), (side, quantity))
         self.assertEqual("평단의 97% 이하 — 최대 2주 매수", why)
 
+    def test_two_share_signal_is_capped_by_the_holding_limit(self) -> None:
+        """보유 9주에서 2주 신호가 나와도 상한을 넘지 않는다 (8.4 계약 4번)."""
+        side, quantity, why = MODULE.judge(9, 100_000.0, 96_000)
+        self.assertEqual(("BUY", 1), (side, quantity))
+        self.assertEqual("평단의 97% 이하 — 상한 적용 1주 매수", why)
+
+    def test_the_cap_is_never_exceeded_by_any_buy(self) -> None:
+        for qty in range(0, MODULE.Q_MAX + 1):
+            with self.subTest(qty=qty):
+                side, quantity, _ = MODULE.judge(qty, 100_000.0, 96_000)
+                if side == "BUY":
+                    self.assertLessEqual(qty + quantity, MODULE.Q_MAX)
+
     def test_above_the_trigger_buys_one(self) -> None:
         side, quantity, why = MODULE.judge(1, 99_500.0, 102_875)
         self.assertEqual(("BUY", 1), (side, quantity))

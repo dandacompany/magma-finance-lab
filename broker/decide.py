@@ -47,6 +47,9 @@ def judge(qty, avg, price):
         return None, 0, "보유 %d주 — 상한 도달, 매수 중단" % qty
     floor = 100 - D_TRIGGER          # 추가매수 발동선 — 평단의 몇 %인가
     if price <= avg * (1 - D_TRIGGER / 100):
+        room = Q_MAX - qty           # 상한까지 남은 자리 — 2주 신호도 이 안에서만 산다
+        if room < 2:
+            return "BUY", room, "평단의 %g%% 이하 — 상한 적용 %d주 매수" % (floor, room)
         return "BUY", 2, "평단의 %g%% 이하 — 최대 2주 매수" % floor
     return "BUY", 1, "평단의 %g%% 초과 — 기본 1주 매수" % floor
 
