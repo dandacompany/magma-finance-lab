@@ -635,6 +635,82 @@ Noah 새 세션에서 요청합니다. Noah는 데이터베이스에 접근할 �
 @Sam 방금 만든 판단 루프 예약을 지워줘
 ```
 
-# 투자위원회 (8.5)
+# 여러 에이전트로 투자위원회 열기 (8.5)
 
-> 실습 확정 후 추가됩니다.
+## 1. 회의 도구 설치와 확인
+
+의장 프로필(Sophie)에만 설치합니다. 패널 프로필에는 필요 없습니다.
+
+```bash
+hermes plugins install dandacompany/hermes-council --enable
+hermes plugins list
+```
+
+목록의 `council` 행에서 버전이 `0.6.0`인지 확인합니다.
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+hermes -p sophie council doctor
+```
+
+`PATH`를 먼저 지정하는 이유는 회의 도구가 내부에서 `hermes` 실행 파일을 다시 부르기 때문입니다.
+비대화형 셸(SSH 등)에서는 이 줄이 없으면 doctor가 실패합니다.
+
+## 2. 안건 문서 준비 (사람)
+
+안건 문서는 사람이 확정하는 입력입니다. 템플릿을 복사해 자기 산출물의 값으로 채웁니다.
+
+```bash
+cp briefs/council-brief-template.md briefs/council-brief.md
+```
+
+8.3의 백테스트 결과, ETF 분석 상태, 8.4의 포지션·한도를 각각 그 문서에서 옮겨 적습니다.
+확인하지 못한 항목은 비웠다고 적습니다. 없는 수치를 채워 넣으면 회의가 그 위에서 논의합니다.
+
+## 3. 회의 열기
+
+먼저 실행 계획만 확인합니다. 아래 명령 끝에 `--dry-run`을 붙이면 회의가 시작되지 않고
+어떤 카드가 만들어질지만 보여줍니다.
+
+```bash
+hermes -p sophie council start \
+  --topic "KODEX 200 규칙과 2종째 ETF 후보를 8.4 주문 루프의 정식 입력으로 승격할지, 검증 게이트가 끝날 때까지 보류할지 심의" \
+  --panel ada,oliver,noah --moderator sophie \
+  --mode sequential --max-turns 3 --hitl \
+  --brief briefs/council-brief.md \
+  --role "ada=데이터가 말하는 것 — 시세·지표·백테스트 결과와 그 검증 상태" \
+  --role "oliver=이 종목의 성격과 위험 — 공개 정보로 확인 가능한 것" \
+  --role "noah=반대편에 서기 — 사지 말아야 할 이유를 찾고 다른 패널 발언을 반박"
+```
+
+계획이 맞으면 `--dry-run` 없이 같은 명령을 실행합니다. 회의 이름은 지정하지 않아도 자동으로 붙습니다.
+
+안건 본문을 `--brief`에 그대로 붙여넣지 않습니다. 이 옵션은 파일 경로를 받으므로
+긴 본문을 직접 넣으면 실패합니다.
+
+## 4. 회의 관찰
+
+```bash
+hermes -p sophie council status <회의 이름>
+```
+
+순차 회의라 패널이 한 명씩 앞 발언을 읽고 말합니다. 사람 결정 게이트를 켰기 때문에
+결론 직전에 멈추고 `사람 결정 대기` 상태가 됩니다.
+
+## 5. 사람 결정
+
+```bash
+hermes -p sophie council decide <회의 이름> "<선택>"
+```
+
+결론은 채택·보류·추가 검증 중 하나입니다. 근거가 부족하면 보류가 정식 결론입니다.
+결정을 미루는 것이 아니라, 지금 증거로는 여기까지라고 적는 것입니다.
+
+## 6. 산출물 확인
+
+```bash
+hermes -p sophie council collect <회의 이름> --format all
+```
+
+요약·결론·결정 기록·회의록 네 가지가 나옵니다. 회의록에는 누가 무엇을 근거로 말했고
+어디서 반박이 나왔는지가 남습니다. 다음 사이클의 입력은 이 파일들입니다.
