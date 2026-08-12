@@ -640,37 +640,42 @@ Noah 새 세션에서 요청합니다. Noah는 데이터베이스에 접근할 �
 ## 1. 회의 도구 설치와 확인
 
 의장 프로필(Sophie)에만 설치합니다. 패널 프로필에는 필요 없습니다.
+아래 명령은 모두 스타터 저장소 루트에서 실행합니다.
 
 ```bash
-hermes plugins install dandacompany/hermes-council --enable
-hermes plugins list
+hermes -p sophie plugins install dandacompany/hermes-council --enable
+hermes -p sophie plugins list
 ```
 
-목록의 `council` 행에서 버전이 `0.6.0`인지 확인합니다.
+설치 명령에는 버전 고정 플래그가 없습니다. 목록의 `council` 행에서 버전이 `0.6.0`이고
+enabled인지 확인하는 것이 정식 절차입니다.
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
 hermes -p sophie council doctor
 ```
 
-`PATH`를 먼저 지정하는 이유는 회의 도구가 내부에서 `hermes` 실행 파일을 다시 부르기 때문입니다.
-비대화형 셸(SSH 등)에서는 이 줄이 없으면 doctor가 실패합니다.
+비대화형 셸(SSH 등)에서 실패하면 `export PATH="$HOME/.local/bin:$PATH"`를 실행한 뒤
+다시 시도합니다. 회의 도구가 내부에서 `hermes` 실행 파일을 다시 부르기 때문입니다.
 
 ## 2. 안건 문서 준비 (사람)
 
 안건 문서는 사람이 확정하는 입력입니다. 템플릿을 복사해 자기 산출물의 값으로 채웁니다.
 
 ```bash
+ls briefs/
 cp briefs/council-brief-template.md briefs/council-brief.md
 ```
 
+`ls`로 템플릿이 있고 `council-brief.md`는 아직 없는 것을 확인한 뒤 복사합니다.
+대상 파일이 이미 있으면 덮어쓰지 말고 다른 이름으로 옮긴 뒤 복사합니다.
+
 8.3의 백테스트 결과, ETF 분석 상태, 8.4의 포지션·한도를 각각 그 문서에서 옮겨 적습니다.
 확인하지 못한 항목은 비웠다고 적습니다. 없는 수치를 채워 넣으면 회의가 그 위에서 논의합니다.
+템플릿의 고지 문장은 지우지 않습니다.
 
 ## 3. 회의 열기
 
-먼저 실행 계획만 확인합니다. 아래 명령 끝에 `--dry-run`을 붙이면 회의가 시작되지 않고
-어떤 카드가 만들어질지만 보여줍니다.
+먼저 예행 연습으로 확인합니다. 회의가 시작되지 않고 어떤 카드가 만들어질지만 보여줍니다.
 
 ```bash
 hermes -p sophie council start \
@@ -678,12 +683,20 @@ hermes -p sophie council start \
   --panel ada,oliver,noah --moderator sophie \
   --mode sequential --max-turns 3 --hitl \
   --brief briefs/council-brief.md \
-  --role "ada=데이터가 말하는 것 — 시세·지표·백테스트 결과와 그 검증 상태" \
-  --role "oliver=이 종목의 성격과 위험 — 공개 정보로 확인 가능한 것" \
-  --role "noah=반대편에 서기 — 사지 말아야 할 이유를 찾고 다른 패널 발언을 반박"
+  --role "ada=데이터가 말하는 것 — 안건 문서의 시세·지표·백테스트 결과와 그 검증 상태" \
+  --role "oliver=상품 성격과 위험 — 안건 문서에 적힌 상품 구조와 비어 있는 항목" \
+  --role "noah=반대편에 서기 — 사지 말아야 할 이유를 찾고 다른 패널 발언을 반박" \
+  --dry-run
 ```
 
-계획이 맞으면 `--dry-run` 없이 같은 명령을 실행합니다. 회의 이름은 지정하지 않아도 자동으로 붙습니다.
+관점은 패널 셋에게만 배정합니다. 의장은 관점을 받지 않습니다.
+세 관점 모두 안건 문서 안에서만 근거를 찾게 적혀 있습니다. 회의 중에 각자 밖에서 자료를
+찾아오면 패널마다 근거의 시점이 달라져, 같은 문서를 읽고 논의한다는 전제가 깨집니다.
+
+경고가 없고 역할 셋이 그대로 들어갔으면 `--dry-run`만 빼고 같은 명령을 실행합니다.
+
+시작 명령의 출력에서 `slug` 값을 복사합니다 — 수업에서는 이것을 회의 이름이라고 부릅니다.
+이후 모든 명령에 이 이름을 씁니다.
 
 안건 본문을 `--brief`에 그대로 붙여넣지 않습니다. 이 옵션은 파일 경로를 받으므로
 긴 본문을 직접 넣으면 실패합니다.
@@ -695,12 +708,14 @@ hermes -p sophie council status <회의 이름>
 ```
 
 순차 회의라 패널이 한 명씩 앞 발언을 읽고 말합니다. 사람 결정 게이트를 켰기 때문에
-결론 직전에 멈추고 `사람 결정 대기` 상태가 됩니다.
+결론 직전에 멈추고 사람 결정 대기 상태가 됩니다.
 
 ## 5. 사람 결정
 
+화면에 표시된 선택지 문구를 그대로 쓰고, 뒤에 자신의 이유를 한 문장 붙입니다.
+
 ```bash
-hermes -p sophie council decide <회의 이름> "<선택>"
+hermes -p sophie council decide <회의 이름> "<화면의 선택지 문구> — <이유 한 문장>"
 ```
 
 결론은 채택·보류·추가 검증 중 하나입니다. 근거가 부족하면 보류가 정식 결론입니다.
@@ -709,8 +724,11 @@ hermes -p sophie council decide <회의 이름> "<선택>"
 ## 6. 산출물 확인
 
 ```bash
-hermes -p sophie council collect <회의 이름> --format all
+hermes -p sophie council collect <회의 이름> --format all --out reports/council
 ```
 
-요약·결론·결정 기록·회의록 네 가지가 나옵니다. 회의록에는 누가 무엇을 근거로 말했고
-어디서 반박이 나왔는지가 남습니다. 다음 사이클의 입력은 이 파일들입니다.
+지정한 폴더에 요약·결론 보고서·결정 기록·전체 회의록 네 가지가 생깁니다. 회의록에는
+누가 무엇을 근거로 말했고 어디서 반박이 나왔는지가 남습니다.
+
+이 결정 기록은 사람이 새 주문 기안을 검토해 만들 때 참고하는 입력입니다.
+다음 아침 루프에 자동으로 반영되지 않습니다.
