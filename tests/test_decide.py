@@ -48,5 +48,40 @@ class DailyGateTest(unittest.TestCase):
         self.assertGreaterEqual(len(decisions), MODULE.DAILY_DRAFT_MAX)
 
 
+class JudgeTest(unittest.TestCase):
+    """판정과 근거 문구 — 문구가 화면·카드에 그대로 실리므로 방향이 틀리면 안 된다."""
+
+    def test_empty_position_starts_a_cycle(self) -> None:
+        side, quantity, why = MODULE.judge(0, 0.0, 99_750)
+        self.assertEqual(("BUY", 1), (side, quantity))
+        self.assertEqual("보유 0주 — 사이클 시작", why)
+
+    def test_target_reached_sells_everything(self) -> None:
+        side, quantity, why = MODULE.judge(3, 100_000.0, 108_000)
+        self.assertEqual(("SELL", 3), (side, quantity))
+        self.assertIn("전량 매도", why)
+
+    def test_cap_reached_stops_buying(self) -> None:
+        side, quantity, why = MODULE.judge(10, 100_000.0, 100_500)
+        self.assertEqual((None, 0), (side, quantity))
+        self.assertIn("상한 도달", why)
+
+    def test_at_or_below_the_trigger_buys_two(self) -> None:
+        side, quantity, why = MODULE.judge(1, 100_000.0, 96_000)
+        self.assertEqual(("BUY", 2), (side, quantity))
+        self.assertEqual("평단의 97% 이하 — 최대 2주 매수", why)
+
+    def test_above_the_trigger_buys_one(self) -> None:
+        side, quantity, why = MODULE.judge(1, 99_500.0, 102_875)
+        self.assertEqual(("BUY", 1), (side, quantity))
+        self.assertEqual("평단의 97% 초과 — 기본 1주 매수", why)
+
+    def test_a_rising_price_is_never_described_as_a_fall(self) -> None:
+        """실측 2026-08-12 — 기준가가 평단의 103.4%인데 '평단 대비 -3% 초과'로 찍혔다."""
+        _, _, why = MODULE.judge(1, 99_500.0, 102_875)
+        self.assertNotIn("-", why)
+        self.assertNotIn("대비", why)
+
+
 if __name__ == "__main__":
     unittest.main()

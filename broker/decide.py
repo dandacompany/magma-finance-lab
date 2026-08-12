@@ -37,6 +37,20 @@ def load_daily_decisions(state_path):
     return [saved] if isinstance(saved, dict) else []
 
 
+def judge(qty, avg, price):
+    """조건표 2~6번 — 위에서 아래로, 처음 걸리는 하나만. (매매방향, 수량, 근거)를 돌려준다."""
+    if qty == 0:
+        return "BUY", 1, "보유 0주 — 사이클 시작"
+    if price >= avg * (1 + P_TARGET / 100):
+        return "SELL", qty, "평단 {:,.0f} 의 +{:g}% 도달 — 전량 매도".format(avg, P_TARGET)
+    if qty >= Q_MAX:
+        return None, 0, "보유 %d주 — 상한 도달, 매수 중단" % qty
+    floor = 100 - D_TRIGGER          # 추가매수 발동선 — 평단의 몇 %인가
+    if price <= avg * (1 - D_TRIGGER / 100):
+        return "BUY", 2, "평단의 %g%% 이하 — 최대 2주 매수" % floor
+    return "BUY", 1, "평단의 %g%% 초과 — 기본 1주 매수" % floor
+
+
 def kiwoomcli(args, profile):
     executable = shutil.which("kiwoomcli")
     if executable is None:
@@ -107,17 +121,8 @@ def main():
     avg = float(held[0]["pur_pric"]) if held else 0.0
     price = int(bars[0]["cur_prc"])
 
-    # 2~5) 판정 — 위에서 아래로, 처음 걸리는 하나만
-    if qty == 0:
-        side, n_qty, why = "BUY", 1, "보유 0주 — 사이클 시작"
-    elif price >= avg * (1 + P_TARGET / 100):
-        side, n_qty, why = "SELL", qty, "평단 %(a),.0f 의 +%(p)s%% 도달 — 전량 매도" % {"a": avg, "p": P_TARGET}
-    elif qty >= Q_MAX:
-        side, n_qty, why = None, 0, "보유 %d주 — 상한 도달, 매수 중단" % qty
-    elif price <= avg * (1 - D_TRIGGER / 100):
-        side, n_qty, why = "BUY", 2, "평단 대비 -%s%% 이하 — 2주 매수" % D_TRIGGER
-    else:
-        side, n_qty, why = "BUY", 1, "평단 대비 -%s%% 초과 — 1주 매수" % D_TRIGGER
+    # 2~6) 판정 — 위에서 아래로, 처음 걸리는 하나만
+    side, n_qty, why = judge(qty, avg, price)
 
     out = {"date": today, "symbol": SYMBOL, "price": price, "held_qty": qty,
            "avg_price": round(avg), "decision": side or "hold", "quantity": n_qty,
