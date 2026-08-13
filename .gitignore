@@ -21,3 +21,9 @@ state/
 
 # 수집 산출물 — 원천 시세와 Supabase 적재 SQL은 로컬에만 둔다
 artifacts/
+
+# 회의 안건 작업 파일 — 각자 채우는 문서라 커밋하지 않는다 (템플릿과 예시만 저장소에 둔다)
+briefs/council-brief.md
+
+# 회의 산출물 — 각자의 회의 기록이라 커밋하지 않는다
+reports/
