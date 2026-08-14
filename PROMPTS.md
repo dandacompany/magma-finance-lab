@@ -647,7 +647,7 @@ hermes -p sophie plugins install dandacompany/hermes-council --enable
 hermes -p sophie plugins list
 ```
 
-설치 명령에는 버전 고정 플래그가 없습니다. 목록의 `council` 행에서 버전이 `0.6.1` 이상이고
+설치 명령에는 버전 고정 플래그가 없습니다. 목록의 `council` 행에서 버전이 `0.13.0` 이상이고
 enabled인지 확인하는 것이 정식 절차입니다.
 
 설치할 때는 저장소 경로(`dandacompany/hermes-council`)를, 제거하거나 설정을 바꿀 때는
@@ -720,7 +720,7 @@ cp briefs/council-brief-example.md briefs/council-brief.md
 먼저 예행으로 어떻게 열릴지만 확인합니다.
 
 ```text
-briefs/council-brief.md 안건으로 투자위원회를 열어줘.
+~/.hermes/workspace/magma-finance-lab/briefs/council-brief.md 를 안건으로 투자위원회를 열어줘.
 패널은 에이다·올리버·노아, 의장은 너야. 한 명씩 순서대로 말하게 하고 최대 세 턴까지만.
 관점은 이렇게 나눠줘.
 - 에이다: 데이터가 말하는 것 — 안건 문서의 시세·지표·백테스트 결과와 그 검증 상태

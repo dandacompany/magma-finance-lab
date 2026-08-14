@@ -195,7 +195,7 @@ def write_sql_chunks(
         code, name = item["symbol"], item["name"]
         symbol_sql = (
             "insert into finance.symbols(symbol,name,market,note) values "
-            f"({sql_literal(code)},{sql_literal(name)},'KRX','8.2 historical backfill') "
+            f"({sql_literal(code)},{sql_literal(name)},'KRX','historical backfill') "
             "on conflict(symbol) do update set name=excluded.name, market=excluded.market;\n"
         )
         for offset in range(0, len(item["rows"]), chunk_size):
